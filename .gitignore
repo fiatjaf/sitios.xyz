@@ -1,0 +1,6 @@
+*.env
+*.swo
+*.swp
+sitios
+elm-stuff
+elm.js

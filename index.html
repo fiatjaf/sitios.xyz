@@ -1,0 +1,38 @@
+<!doctype html>
+
+<meta charset=utf-8>
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+<title>sítios - assemble your static site with content from anywhere.</title>
+
+<header>
+  <h1>sítios</h1>
+</header>
+
+<main>
+</main>
+
+<footer>
+</footer>
+
+<script src=elm.js></script>
+<script>
+let token = location.search.slice(1).split('&')
+  .map(kv => kv.split('='))
+  .filter(([k, v]) => k === 'token')
+  .map(([k, v]) => v)
+  [0]
+
+if (token) {
+  localStorage.setItem('token', token)
+}
+
+var app = Elm.Main.fullscreen({
+  token: token || localStorage.getItem('token'),
+  ws: location.protocol.replace('http', 'ws') + location.host + '/ws'
+})
+
+app.ports.external.subscribe(url => {
+  location.href = url + '?redirect_uri=' + location.href
+})
+</script>
