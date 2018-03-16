@@ -1,0 +1,43 @@
+* {
+  box-sizing: border-box;
+  font-family: monospace;
+}
+html, body { margin: 0; padding: 0; }
+
+html {
+  background: #272624;
+  color: white;
+}
+
+a {
+  color: #e3ffff;
+}
+
+body {
+  font-size: 135%;
+  width: 80%;
+  margin: 32px auto;
+}
+
+ul {
+  padding: 0;
+  margin: 6px 0;
+}
+
+.log {
+  min-height: 900px;
+}
+
+.sites li {
+  display: inline;
+  margin: 0 8px;
+}
+
+.notice.error:before {
+  content: '.';
+  padding: 9px 7px 2px;
+  color: transparent;
+  background: red;
+  margin-right: 10px;
+  font-size: 3px;
+}

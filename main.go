@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/fiatjaf/accountd"
@@ -48,12 +49,14 @@ func main() {
 func handle(pg *sqlx.DB, conn *websocket.Conn) {
 	defer conn.Close()
 	var user string
+	var sendMsg func(string)
 
 	for {
 		typ, bm, err := conn.ReadMessage()
 		if err != nil || typ != websocket.TextMessage {
 			log.Error().
 				Err(err).
+				Int("type", typ).
 				Msg("error reading message")
 			break
 		}
@@ -61,9 +64,10 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 
 		log.Debug().
 			Str("message", sm).
-			Msg("read message")
+			Str("user", user).
+			Msg("got message")
 
-		m := strings.Split(sm, " ")
+		m := strings.SplitN(sm, " ", 2)
 
 		switch m[0] {
 		case "login":
@@ -73,26 +77,79 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 					Err(err).
 					Str("token", m[1]).
 					Msg("failed to verify auth token")
-				sendMsg(conn, "notice error="+err.Error())
+				sendMsg("notice error=" + err.Error())
 				continue
 			}
-			sendMsg(conn, "notice login-success="+user)
+			log.Debug().Str("user", user).Msg("successful login")
+			sendMsg = func(sm string) {
+				log.Debug().
+					Str("message", sm).
+					Str("user", user).
+					Msg("sending message")
+
+				err := conn.WriteMessage(websocket.TextMessage, []byte(sm))
+				if err != nil {
+					log.Warn().
+						Err(err).
+						Msg("failed to send message to connection")
+				}
+			}
+
+			sendMsg("notice login-success=" + user)
+
+			// fetch existing sites for this user
+			sites, err := listSites(pg, user)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Msg("couldn't fetch sites for user")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+			sitesstr := make([]string, len(sites))
+			for i, s := range sites {
+				sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Subdomain
+			}
+			sendMsg("sites " + strings.Join(sitesstr, ","))
 			break
-		case "":
+		case "create-site":
+			subdomain := m[1]
+			id, err := createSite(pg, user, subdomain)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Str("subdomain", subdomain).
+					Msg("couldn't create site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+			sendMsg("notice create-site-success=" + strconv.Itoa(id))
 			break
+		case "enter-site":
+			id, err := strconv.Atoi(m[1])
+			if err != nil {
+				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+				continue
+			}
+			site, err := fetchSite(pg, user, id)
+			log.Print(site)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Int("site", id).
+					Msg("couldn't fetch site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+			sendMsg("site ")
+			break
+		default:
+			log.Warn().
+				Str("message", m[0]).
+				Msg("invalid message kind")
 		}
-	}
-}
-
-func sendMsg(conn *websocket.Conn, sm string) {
-	log.Debug().
-		Str("message", sm).
-		Msg("sending message")
-
-	err := conn.WriteMessage(websocket.TextMessage, []byte(sm))
-	if err != nil {
-		log.Warn().
-			Err(err).
-			Msg("failed to send message to connection")
 	}
 }
