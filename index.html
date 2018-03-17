@@ -24,6 +24,8 @@ let token = location.search.slice(1).split('&')
   .map(([k, v]) => v)
   [0]
 
+history.replaceState('', '', '/')
+
 if (token) {
   localStorage.setItem('token', token)
 }

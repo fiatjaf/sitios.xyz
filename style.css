@@ -13,6 +13,10 @@ a {
   color: #e3ffff;
 }
 
+h1 {
+  margin: 0;
+}
+
 body {
   font-size: 135%;
   width: 80%;
@@ -21,17 +25,23 @@ body {
 
 ul {
   padding: 0;
-  margin: 6px 0;
+  margin: 0;
 }
 
 .log {
   min-height: 900px;
 }
+  .log > li {
+    margin: 6px 0;
+    list-style: none;
+  }
 
-.sites li {
-  display: inline;
-  margin: 0 8px;
-}
+.sites {}
+  .sites ul { display: inline; }
+  .sites li {
+    display: inline;
+    margin: 0 8px;
+  }
 
 .notice.error:before {
   content: '.';
