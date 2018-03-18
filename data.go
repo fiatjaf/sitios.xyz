@@ -37,6 +37,15 @@ RETURNING id
 	return
 }
 
+func deleteSite(pg *sqlx.DB, user string, id int) (err error) {
+	_, err = pg.Exec(`
+WITH tsite AS ( SELECT id FROM sites WHERE owner = $1 AND id = $2 ),
+     sdel AS ( DELETE FROM sources WHERE site = (SELECT id FROM tsite) )
+DELETE FROM sites WHERE id = (SELECT id FROM tsite)
+    `, user, id)
+	return
+}
+
 func fetchSite(pg *sqlx.DB, user string, id int) (site Site, err error) {
 	err = pg.Get(&site, `
 SELECT 

@@ -63,6 +63,7 @@ type Message
   | SiteMessage Site
   | CreateSiteMessage String
   | PublishMessage String
+  | DeleteMessage String
   | NoticeMessage Notice
   | NotLoggedMessage
   | UnknownMessage String
@@ -72,6 +73,7 @@ type Notice
   | LoginSuccessNotice String
   | CreateSiteSuccessNotice Int
   | PublishSuccessNotice String
+  | DeleteSuccessNotice String
 
 parseMessage : String -> Message
 parseMessage m =
@@ -136,6 +138,14 @@ parseMessage m =
               |> withDefault ""
               |> PublishSuccessNotice
               |> NoticeMessage
+          Just "delete-success" ->
+            first_param
+              |> split "="
+              |> drop 1
+              |> head
+              |> withDefault ""
+              |> DeleteSuccessNotice
+              |> NoticeMessage
           _ -> UnknownMessage m
       Just "not-logged" -> NotLoggedMessage
       _ -> UnknownMessage m
@@ -151,6 +161,7 @@ type Msg
   | AddSource Int
   | SourceAction Int Int Int Int SourceMsg
   | Publish Int String
+  | Delete Int String
 
 type SourceMsg
   = EditRoot String
@@ -281,7 +292,10 @@ update msg model =
       ( { model | log = model.log |> push (PublishMessage subdomain) }
       , send model.ws ("publish " ++ toString siteId)
       )
-      
+    Delete siteId subdomain ->
+      ( { model | log = model.log |> push (DeleteMessage subdomain) }
+      , send model.ws ("delete-site " ++ toString siteId)
+      )
 
 
 subscriptions : Model -> Sub Msg
@@ -343,6 +357,7 @@ viewMessage model i message =
             [ a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
               [ text subdomain ]
             , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
+            , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
             ]
           , table []
             <| List.indexedMap
@@ -373,6 +388,12 @@ viewMessage model i message =
           ]
         , text "."
         ]
+    DeleteMessage subdomain ->
+      li [ class "delete" ]
+        [ text "Deleting "
+        , em [] [ text <| "http://" ++ subdomain ++ ".sitios.xyz/" ]
+        , text "."
+        ]
     NoticeMessage not ->
       case not of
         ErrorNotice err -> li [ class "notice error" ] [ text err ] 
@@ -391,6 +412,11 @@ viewMessage model i message =
           , a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
             [ text <| "http://" ++ subdomain ++ ".sitios.xyz/"
             ]
+          , text "."
+          ]
+        DeleteSuccessNotice subdomain -> li [ class "notice delete-success" ]
+          [ text "Deleted "
+          , em [] [ text <| "http://" ++ subdomain ++ ".sitios.xyz/" ]
           , text "."
           ]
     NotLoggedMessage -> case model.token of

@@ -34,10 +34,32 @@ func ensureEmptyBucket(bucketName string) error {
 		return err
 	}
 
+	emptyBucket(bucketName)
+	return nil
+}
+
+func removeBucket(bucketName string) error {
+	emptyBucket(bucketName)
+
+	if err := s3.RemoveBucket(bucketName); err != nil {
+		exists, err := s3.BucketExists(bucketName)
+		if err != nil {
+			return err
+		}
+
+		if !exists {
+			// already deleted
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func emptyBucket(bucketName string) {
 	objectsCh := make(chan string)
 	doneCh := make(chan struct{})
 
-	// remove all objects from bucket
 	go func() {
 		defer close(objectsCh)
 		for object := range s3.ListObjects(bucketName, "", true, doneCh) {
@@ -60,8 +82,6 @@ func ensureEmptyBucket(bucketName string) error {
 			Str("bucket", bucketName).
 			Msg("failed to remove object from bucket")
 	}
-
-	return nil
 }
 
 func uploadFilesToBucket(bucketName, dirname string) error {

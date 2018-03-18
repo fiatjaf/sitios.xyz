@@ -140,6 +140,48 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 			}
 			sendMsg("notice create-site-success=" + strconv.Itoa(id))
 			break
+		case "delete-site":
+			id, err := strconv.Atoi(m[1])
+			if err != nil {
+				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+				continue
+			}
+
+			site, err := fetchSite(pg, user, id)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Int("site", id).
+					Msg("couldn't fetch site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			err = removeBucket(site.Subdomain + ".sitios.xyz")
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Str("subdomain", site.Subdomain).
+					Msg("couldn't delete bucket on delete-site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			err = deleteSite(pg, user, id)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Int("site", site.Id).
+					Msg("couldn't delete site from db")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			sendMsg("notice delete-success=" + site.Subdomain)
+			break
 		case "enter-site":
 			id, err := strconv.Atoi(m[1])
 			if err != nil {
