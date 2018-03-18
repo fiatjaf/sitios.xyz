@@ -209,10 +209,7 @@ update msg model =
 
         effect = case nextmessage of
           NoticeMessage (CreateSiteSuccessNotice id) ->
-            Cmd.batch
-              [ send model.ws "list-sites"
-              , send model.ws ("enter-site " ++ toString id)
-              ]
+            send model.ws ("enter-site " ++ toString id)
           NoticeMessage (LoginSuccessNotice user) ->
             -- if we should be logged already in there's no need to call list-sites again
             if model.user == Just user then Cmd.none
@@ -354,7 +351,7 @@ viewMessage model i message =
       li [ class "site" ]
         [ div []
           [ h1 []
-            [ a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
+            [ a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
               [ text subdomain ]
             , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
             , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
@@ -383,15 +380,15 @@ viewMessage model i message =
     PublishMessage subdomain ->
       li [ class "publish" ]
         [ text "Publishing site to "
-        , a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
-          [ text <| "http://" ++ subdomain ++ ".sitios.xyz/"
+        , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+          [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
           ]
         , text "."
         ]
     DeleteMessage subdomain ->
       li [ class "delete" ]
         [ text "Deleting "
-        , em [] [ text <| "http://" ++ subdomain ++ ".sitios.xyz/" ]
+        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
         , text "."
         ]
     NoticeMessage not ->
@@ -409,14 +406,14 @@ viewMessage model i message =
           ]
         PublishSuccessNotice subdomain -> li [ class "notice publish-success" ]
           [ text "Publish successfully to "
-          , a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
-            [ text <| "http://" ++ subdomain ++ ".sitios.xyz/"
+          , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+            [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
             ]
           , text "."
           ]
         DeleteSuccessNotice subdomain -> li [ class "notice delete-success" ]
           [ text "Deleted "
-          , em [] [ text <| "http://" ++ subdomain ++ ".sitios.xyz/" ]
+          , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
           , text "."
           ]
     NotLoggedMessage -> case model.token of

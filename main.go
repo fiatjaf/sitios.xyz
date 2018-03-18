@@ -162,9 +162,18 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 			if err != nil {
 				log.Error().
 					Err(err).
-					Str("user", user).
 					Str("subdomain", site.Subdomain).
 					Msg("couldn't delete bucket on delete-site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			err = removeSubdomainDNS(site.Subdomain)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("subdomain", site.Subdomain).
+					Msg("couldn't remove dns record")
 				sendMsg("notice error=" + err.Error())
 				continue
 			}

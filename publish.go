@@ -40,6 +40,11 @@ func publish(site Site) error {
 		return err
 	}
 
+	err = setupSubdomainDNS(site.Subdomain)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
