@@ -59,9 +59,10 @@ type Message
   = ChooseLoginMessage
   | LoginMessage String
   | SitesMessage (List SiteInfo)
+  | EnterSiteMessage Int
   | SiteMessage Site
   | CreateSiteMessage String
-  | EnterSiteMessage Int
+  | PublishMessage String
   | NoticeMessage Notice
   | NotLoggedMessage
   | UnknownMessage String
@@ -70,6 +71,7 @@ type Notice
   = ErrorNotice String
   | LoginSuccessNotice String
   | CreateSiteSuccessNotice Int
+  | PublishSuccessNotice String
 
 parseMessage : String -> Message
 parseMessage m =
@@ -126,6 +128,14 @@ parseMessage m =
               |> withDefault 0
               |> CreateSiteSuccessNotice
               |> NoticeMessage
+          Just "publish-success" ->
+            first_param
+              |> split "="
+              |> drop 1
+              |> head
+              |> withDefault ""
+              |> PublishSuccessNotice
+              |> NoticeMessage
           _ -> UnknownMessage m
       Just "not-logged" -> NotLoggedMessage
       _ -> UnknownMessage m
@@ -140,6 +150,7 @@ type Msg
   | FinishCreatingSite Int
   | AddSource Int
   | SourceAction Int Int Int Int SourceMsg
+  | Publish Int String
 
 type SourceMsg
   = EditRoot String
@@ -266,6 +277,10 @@ update msg model =
             , effect
             )
         _ -> ( model, Cmd.none )
+    Publish siteId subdomain ->
+      ( { model | log = model.log |> push (PublishMessage subdomain) }
+      , send model.ws ("publish " ++ toString siteId)
+      )
       
 
 
@@ -326,8 +341,8 @@ viewMessage model i message =
         [ div []
           [ h1 []
             [ a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
-              [ text subdomain
-              ]
+              [ text subdomain ]
+            , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
             ]
           , table []
             <| List.indexedMap
@@ -350,6 +365,14 @@ viewMessage model i message =
           , button [] [ text "Create" ]
           ]
         ]
+    PublishMessage subdomain ->
+      li [ class "publish" ]
+        [ text "Publishing site to "
+        , a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+          [ text <| "http://" ++ subdomain ++ ".sitios.xyz/"
+          ]
+        , text "."
+        ]
     NoticeMessage not ->
       case not of
         ErrorNotice err -> li [ class "notice error" ] [ text err ] 
@@ -361,6 +384,13 @@ viewMessage model i message =
         CreateSiteSuccessNotice id -> li [ class "notice create-site-success" ]
           [ text "Created site successfully with id "
           , em [] [ text <| toString id ]
+          , text "."
+          ]
+        PublishSuccessNotice subdomain -> li [ class "notice publish-success" ]
+          [ text "Publish successfully to "
+          , a [ href <| "http://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+            [ text <| "http://" ++ subdomain ++ ".sitios.xyz/"
+            ]
           , text "."
           ]
     NotLoggedMessage -> case model.token of

@@ -232,6 +232,36 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 
 			sendSite(sendMsg, site)
 			break
+		case "publish":
+			id, err := strconv.Atoi(m[1])
+			if err != nil {
+				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+				continue
+			}
+
+			site, err := fetchSite(pg, user, id)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Int("site", id).
+					Msg("couldn't fetch site")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			err = publish(site)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Int("site", site.Id).
+					Msg("error publishing")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			sendMsg("notice publish-success=" + site.Subdomain)
+			break
 		default:
 			log.Warn().
 				Str("message", m[0]).
