@@ -2,34 +2,46 @@ package main
 
 import (
 	"mime"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 
+	"github.com/kr/s3"
 	"github.com/minio/minio-go"
 	"github.com/minio/minio-go/pkg/policy"
 )
 
-var s3, _ = minio.New(
+var AWS_KEY_ID = os.Getenv("AWS_KEY_ID")
+var AWS_SECRET_KEY = os.Getenv("AWS_SECRET_KEY")
+
+var ms3, _ = minio.New(
 	"s3.amazonaws.com",
-	os.Getenv("AWS_KEY_ID"),
-	os.Getenv("AWS_SECRET_KEY"),
+	AWS_KEY_ID,
+	AWS_SECRET_KEY,
 	true,
 )
 
 func ensureEmptyBucket(bucketName string) error {
-	exists, err := s3.BucketExists(bucketName)
+	exists, err := ms3.BucketExists(bucketName)
 	if err != nil {
 		return err
 	}
 
 	if !exists {
-		err = s3.MakeBucket(bucketName, "us-east-1")
+		err = ms3.MakeBucket(bucketName, "us-east-1")
 		if err != nil {
 			return err
 		}
 	}
 
-	err = s3.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadOnly)
+	err = ms3.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadOnly)
+	if err != nil {
+		return err
+	}
+
+	err = makeBucketAWebsite(bucketName)
 	if err != nil {
 		return err
 	}
@@ -41,8 +53,8 @@ func ensureEmptyBucket(bucketName string) error {
 func removeBucket(bucketName string) error {
 	emptyBucket(bucketName)
 
-	if err := s3.RemoveBucket(bucketName); err != nil {
-		exists, err := s3.BucketExists(bucketName)
+	if err := ms3.RemoveBucket(bucketName); err != nil {
+		exists, err := ms3.BucketExists(bucketName)
 		if err != nil {
 			return err
 		}
@@ -62,7 +74,7 @@ func emptyBucket(bucketName string) {
 
 	go func() {
 		defer close(objectsCh)
-		for object := range s3.ListObjects(bucketName, "", true, doneCh) {
+		for object := range ms3.ListObjects(bucketName, "", true, doneCh) {
 			if object.Err != nil {
 				log.Error().
 					Err(object.Err).
@@ -72,7 +84,7 @@ func emptyBucket(bucketName string) {
 			objectsCh <- object.Key
 		}
 	}()
-	errorCh := s3.RemoveObjects(bucketName, objectsCh)
+	errorCh := ms3.RemoveObjects(bucketName, objectsCh)
 
 	// print errors received from RemoveObjects API
 	for e := range errorCh {
@@ -96,7 +108,7 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 			}
 
 			objectname, _ := filepath.Rel(dirname, filename)
-			n, err := s3.FPutObject(bucketName, objectname, filename,
+			n, err := ms3.FPutObject(bucketName, objectname, filename,
 				minio.PutObjectOptions{
 					ContentType: mimetype(filename),
 				})
@@ -114,4 +126,33 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 
 func mimetype(filename string) string {
 	return mime.TypeByExtension(filepath.Ext(filename))
+}
+
+func makeBucketAWebsite(bucketName string) error {
+	keys := s3.Keys{
+		AccessKey: AWS_KEY_ID,
+		SecretKey: AWS_SECRET_KEY,
+	}
+	data := strings.NewReader(`
+<WebsiteConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+  <IndexDocument>
+    <Suffix>index.html</Suffix>
+  </IndexDocument>
+  <ErrorDocument>
+    <Key>error.html</Key>
+  </ErrorDocument>
+</WebsiteConfiguration>
+`)
+	r, _ := http.NewRequest(
+		"PUT", "http://"+bucketName+".s3.amazonaws.com/?website", data)
+	r.ContentLength = int64(data.Len())
+	r.Header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+	s3.Sign(r, keys)
+	resp, err := http.DefaultClient.Do(r)
+	if err != nil {
+		return err
+	}
+
+	log.Print(resp.StatusCode)
+	return nil
 }
