@@ -1,13 +1,19 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
-
-	"github.com/a8m/mark"
+	"text/template"
 )
+
+type GenerateContext struct {
+	Globals map[string]interface{}
+	Sources []Source
+}
 
 func publish(site Site) error {
 	dirname, err := ioutil.TempDir("", "sitios")
@@ -22,60 +28,71 @@ func publish(site Site) error {
 		return err
 	}
 
-	for _, source := range sources {
-		prefix := filepath.Join(dirname, source.Root)
-		err = providers[source.Provider](prefix, source.Reference)
-		if err != nil {
-			return err
-		}
+	// generate the generate.js file to be passed to sitio
+	ctx := GenerateContext{
+		Globals: map[string]interface{}{
+			"rootURL":     "https://" + site.Subdomain + ".sitios.xyz",
+			"name":        "unnamed",
+			"description": "~",
+			"nav":         []map[string]string{},
+			"aside":       "",
+			"footer":      "",
+			"includes":    []string{},
+		},
+		Sources: sources,
 	}
 
+	t := template.New("generate.js")
+	t.Funcs(map[string]interface{}{
+		"json": func(v interface{}) (string, error) {
+			b, err := json.Marshal(v)
+			return string(b), err
+		},
+	})
+	t, err = t.ParseFiles("skeleton/generate.js")
+	if err != nil {
+		return err
+	}
+
+	generateFile, err := os.Create(filepath.Join(dirname, "generate.js"))
+	if err != nil {
+		return err
+	}
+	err = t.Execute(generateFile, ctx)
+	if err != nil {
+		return err
+	}
+
+	// run the generate.js file
+	cmd := exec.Command("node_modules/.bin/sitio",
+		filepath.Join(dirname, "generate.js"),
+		"--body=body.js",
+		"--helmet=head.js",
+		"--target-dir="+filepath.Join(dirname, "_site"),
+	)
+	cmd.Dir = "skeleton"
+	out, err := cmd.CombinedOutput()
+	fmt.Printf(string(out))
+	if err != nil {
+		return err
+	}
+
+	// send files to s3
 	err = ensureEmptyBucket(site.Subdomain + ".sitios.xyz")
 	if err != nil {
 		return err
 	}
 
-	err = uploadFilesToBucket(site.Subdomain+".sitios.xyz", dirname)
+	err = uploadFilesToBucket(site.Subdomain+".sitios.xyz", filepath.Join(dirname, "_site"))
 	if err != nil {
 		return err
 	}
 
+	// make https work by explicit adding a CNAME to cloudflare
 	err = setupSubdomainDNS(site.Subdomain)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-var providers = map[string]func(string, string) error{
-	"url:markdown": func(prefix string, url string) error {
-		btext, err := fetchText(url)
-		if err != nil {
-			return err
-		}
-		html := mark.Render(string(btext))
-		return ioutil.WriteFile(prefix, []byte(html), 0666)
-	},
-	"url:html": func(prefix string, url string) error {
-		bhtml, err := fetchText(url)
-		if err != nil {
-			return err
-		}
-		return ioutil.WriteFile(prefix, bhtml, 0666)
-	},
-}
-
-func fetchText(url string) (btext []byte, err error) {
-	res, err := http.Get(url)
-	if err != nil {
-		return
-	}
-	defer res.Body.Close()
-
-	btext, err = ioutil.ReadAll(res.Body)
-	if err != nil {
-		return
-	}
-	return
 }
