@@ -21,7 +21,9 @@ import Ports exposing (..)
 type alias Model =
   { log : Array Message
   , user : Maybe String
+  , sites : List SiteInfo
   , site : Maybe Site
+  , source : Maybe Source
   , token : Maybe String
   , ws : String
   }
@@ -158,8 +160,9 @@ type Msg
   | StartCreatingSite
   | EditCreatingSite Int String
   | FinishCreatingSite Int
+  | EnterSource Source
   | AddSource Int
-  | SourceAction Int Int Int Int SourceMsg
+  | SourceAction Int Int SourceMsg
   | Publish Int String
   | Delete Int String
 
@@ -169,6 +172,7 @@ type SourceMsg
   | EditReference String
   | SaveSourceEdits
   | RemoveSource
+  | LeaveSource
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -184,36 +188,23 @@ update msg model =
         nmessages = Array.length model.log
         lastmessage = model.log |> get (nmessages - 1)
         nextmessage = Debug.log "got message" <| parseMessage m
-        justappendmessage = { model | log = model.log |> push nextmessage }
+        appendmessage = { model | log = model.log |> push nextmessage }
 
         nextmodel =
           if Just nextmessage == lastmessage then
             model
           else case nextmessage of
-            -- if we should be logged already in there's no need to log this again
+            SiteMessage site -> { appendmessage | site = Just site }
+            SitesMessage sites -> { appendmessage | sites = sites }
             NoticeMessage (LoginSuccessNotice user) ->
-              if model.user == Just user then model
-              else { justappendmessage | user = Just user }
-
-            -- in the beggining of a session we shouldn't be logged anyway
-            NotLoggedMessage -> if nmessages > 2 then justappendmessage else model
-
-            -- if we're editing a site and get an update for that, just replace the last
-            SiteMessage site -> case lastmessage of
-              Just (SiteMessage lastsite) ->
-                if lastsite.id == site.id then
-                  { model | log = model.log |> set (nmessages - 1) nextmessage }
-                else justappendmessage
-              _ -> justappendmessage
-            _ -> justappendmessage
+              { appendmessage | user = Just user }
+            _ -> appendmessage
 
         effect = case nextmessage of
           NoticeMessage (CreateSiteSuccessNotice id) ->
             send model.ws ("enter-site " ++ toString id)
           NoticeMessage (LoginSuccessNotice user) ->
-            -- if we should be logged already in there's no need to call list-sites again
-            if model.user == Just user then Cmd.none
-            else send model.ws "list-sites"
+            send model.ws "list-sites"
           NotLoggedMessage ->
             case model.token of
               Just t -> send model.ws ("login " ++ t)
@@ -248,43 +239,40 @@ update msg model =
           , send model.ws ("create-site " ++ subdomain)
           )
         _ -> ( model, Cmd.none )
+    EnterSource source ->
+      ( { model | source = Just source }
+      , Cmd.none
+      )
     AddSource siteId ->
       ( model
       , send model.ws ("add-source " ++ toString siteId)
       )
-    SourceAction siteId sourceId siteMessageIdx sourceIdx sourcemsg ->
-      case model.log |> get siteMessageIdx of
-        Just (SiteMessage site) ->
+    SourceAction siteId sourceId sourcemsg ->
+      case model.source of
+        Nothing -> ( model, Cmd.none )
+        Just source ->
           let
-            ( nextsite, effect ) = case site.sources |> get sourceIdx of
-              Just source ->
+            nextsource = case sourcemsg of
+              EditRoot root -> Just { source | root = root }
+              EditProvider provider -> Just { source | provider = provider }
+              EditReference ref -> Just { source | reference = ref }
+              LeaveSource -> Nothing
+              _ -> model.source
+            effect = case sourcemsg of
+              SaveSourceEdits ->
                 let
-                  nextsource = case sourcemsg of
-                    EditRoot root -> { source | root = root }
-                    EditProvider provider -> { source | provider = provider }
-                    EditReference ref -> { source | reference = ref }
-                    _ -> source
-                  effect = case sourcemsg of
-                    SaveSourceEdits ->
-                      let
-                        json = "{\"root\":\"" ++ source.root ++ "\",\"provider\":\""
-                               ++ source.provider ++ "\", \"reference\":\""
-                               ++ source.reference ++ "\"}"
-                        m = ("update-source " ++ toString sourceId ++ " " ++ json)
-                      in send model.ws m
-                    RemoveSource ->
-                      send model.ws ("remove-source " ++ toString sourceId)
-                    _ -> Cmd.none
-                in
-                  ( { site | sources = site.sources |> set sourceIdx nextsource }
-                  , effect
-                  )
-              Nothing -> ( site, Cmd.none )
+                  json = "{\"root\":\"" ++ source.root ++ "\",\"provider\":\""
+                         ++ source.provider ++ "\", \"reference\":\""
+                         ++ source.reference ++ "\"}"
+                  m = ("update-source " ++ toString sourceId ++ " " ++ json)
+                in send model.ws m
+              RemoveSource ->
+                send model.ws ("remove-source " ++ toString sourceId)
+              _ -> Cmd.none
           in
-            ( { model | log = model.log |> set siteMessageIdx (SiteMessage nextsite) }
+            ( { model | source = nextsource }
             , effect
             )
-        _ -> ( model, Cmd.none )
     Publish siteId subdomain ->
       ( { model | log = model.log |> push (PublishMessage subdomain) }
       , send model.ws ("publish " ++ toString siteId)
@@ -304,7 +292,62 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
   div []
-    [ ul [ class "log" ]
+    [ case model.user of
+      Nothing ->
+        div [ id "login" ]
+          [ text "login using "
+          , button [ onClick (LoginUsing "twitter") ] [ text "twitter" ]
+          , text ", "
+          , button [ onClick (LoginUsing "github") ] [ text "github" ]
+          , text " or "
+          , button [ onClick (LoginUsing "trello") ] [ text "trello" ]
+          ]
+      Just username ->
+        div [ id "main" ]
+          [ div [ id "list" ]
+            [ if List.length model.sites == 0 then
+                text "You don't have any sites yet. "
+              else ul []
+                <| (::) (text "Your sites: ")
+                <| List.map
+                  ( \site ->
+                    button [ onClick (EnterSite site.id) ] [ text site.subdomain ]
+                  )
+                <| model.sites
+            , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
+            ]
+          , div [ id "site" ]
+            [ case model.site of
+              Nothing -> text ""
+              Just {subdomain, sources, id} ->
+                div []
+                  [ h1 []
+                    [ a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
+                      [ text subdomain ]
+                    , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
+                    , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
+                    ]
+                  , ul []
+                    <| List.map
+                      ( \source ->
+                        li [ class "source" ]
+                          [ a [ onClick (EnterSource source) ]
+                            [ text <| source.root ++ " -> " ++ source.provider
+                            ]
+                          ]
+                      )
+                    <| Array.toList sources
+                  , button [ onClick (AddSource id) ] [ text "Add a new data source" ]
+                  ]
+            ]
+          , div [ id "source" ]
+            [ case (model.site, model.source) of
+                (Just site, Just source) -> viewSource source
+                  |> Html.map (SourceAction site.id source.id)
+                _ -> text ""
+            ]
+          ]
+    , ul [ id "log" ]
       <| List.indexedMap (viewMessage model)
       <| Array.toList model.log
     ]
@@ -356,13 +399,6 @@ viewMessage model i message =
             , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
             , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
             ]
-          , table []
-            <| List.indexedMap
-              ( \sidx source ->
-                let vhtml = viewSource source
-                in Html.map (SourceAction id source.id i sidx) vhtml
-              )
-            <| Array.toList sources
           , button [ onClick (AddSource id) ] [ text "Add a new data source" ]
           ]
         ]
@@ -417,31 +453,35 @@ viewMessage model i message =
           , text "."
           ]
     NotLoggedMessage -> case model.token of
-      Just _ -> text "" -- no need to show the login buttons, we already have a token
+      Just _ -> li [ class "not-logged" ] [ text "you were disconnected." ]
       Nothing -> viewMessage model i ChooseLoginMessage
     UnknownMessage m -> li [ class "unknown" ] [ text m ]
 
 viewSource : Source -> Html SourceMsg
 viewSource {id, provider, reference, root} =
-  tr []
-    [ td []
-      [ input [ value root, onInput EditRoot ] []
+  div []
+    [ button [ onClick LeaveSource ] [ text "close" ]
+    , label []
+      [ text "Root:"
+      , input [ value root, onInput EditRoot ] []
       ]
-    , td []
-      [ select [ value provider, on "change" (Json.Decode.map EditProvider targetValue) ]
+    , label []
+      [ text "Provider:"
+      , select [ value provider, on "change" (Json.Decode.map EditProvider targetValue) ]
         [ option [] [ text "" ]
         , option [] [ text "url:html" ]
         , option [] [ text "url:markdown" ]
         , option [] [ text "trello:list" ]
         ]
       ]
-    , td []
-      [ input [ value reference, onInput EditReference ] []
+    , label []
+      [ text "Reference:"
+      , input [ value reference, onInput EditReference ] []
       ]
-    , td []
+    , div []
       [ button [ onClick SaveSourceEdits ] [ text "Save" ]
       ]
-    , td []
+    , div []
       [ button [ onClick RemoveSource ] [ text "Delete" ]
       ]
     ]
@@ -466,7 +506,9 @@ init {token, ws} =
           Just t -> Array.fromList [ LoginMessage t ]
           Nothing -> Array.fromList [ ChooseLoginMessage ]
     , user = Nothing
+    , sites = []
     , site = Nothing
+    , source = Nothing
     , ws = ws
     , token = token
     }

@@ -28,19 +28,22 @@ ul {
   margin: 0;
 }
 
-.log {
-  min-height: 900px;
+#login {}
+
+#main {
+  height: 600px;
+  display: flex;
 }
-  .log > li {
+  #list {}
+  #site {}
+  #source {}
+
+#log {
+  height: (100vh - 600px)
+}
+  #log > li {
     margin: 6px 0;
     list-style: none;
-  }
-
-.sites {}
-  .sites ul { display: inline; }
-  .sites li {
-    display: inline;
-    margin: 0 8px;
   }
 
 .notice.error:before {
