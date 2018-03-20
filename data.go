@@ -13,10 +13,11 @@ type Site struct {
 }
 
 type Source struct {
-	Id        int    `json:"id"`
-	Provider  string `json:"provider"`
-	Reference string `json:"reference"`
-	Root      string `json:"root"`
+	Id        int                    `json:"id"`
+	Provider  string                 `json:"provider"`
+	Reference string                 `json:"reference"`
+	Root      string                 `json:"root"`
+	Data      map[string]interface{} `json:"data"`
 }
 
 func listSites(pg *sqlx.DB, user string) (sites []Site, err error) {
@@ -52,7 +53,7 @@ SELECT
   id, subdomain, data,
   ( SELECT coalesce(json_agg(row_to_json(source)), '[]'::json)
     FROM (
-      SELECT id, provider, reference, root
+      SELECT id, provider, reference, root, data
       FROM sources WHERE sources.site = sites.id
     )source
   ) AS sources

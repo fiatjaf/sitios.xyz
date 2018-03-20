@@ -1,27 +1,31 @@
 const path = require('path')
-const {init, end, generatePage} = require('sitio')
+const {init, end, generatePage, plug} = require('sitio')
 const parallel = require('run-parallel')
 
 const plugins = {
   'url:html': 'sitio-url',
-  'url:markdown': 'sitio-url'
+  'url:markdown': 'sitio-url',
+  'trello:list': 'sitio-trello/list'
 }
 
 init({{ json .Globals }})
 
-parallel(
-  {{ json .Sources }}
-    .map(({provider, reference, root}) => function () {
-      let plugin = plugins[provider]
+let tasks = {{ json .Sources }}.map(({provider, reference, root, data}) => function (done) {
+  let pluginName = plugins[provider]
+  if (!pluginName) return
 
-      let gen = function (pathsuffix, component, props) {
-        generatePage(
-          path.join(path.join(root, pathsuffix)),
-          path.join('node_modules', plugin, component),
-          props
-        )
-      }
-      require(plugin)(gen, reference)
-    }),
-  end
+  data.ref = reference
+  plug(pluginName, root, data, done)
+})
+
+parallel(
+  tasks,
+  (err, _) => {
+    if (err) {
+      console.log('error running one of the sources', err)
+      return
+    }
+
+    end()
+  }
 )
