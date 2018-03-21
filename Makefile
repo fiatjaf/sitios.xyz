@@ -11,4 +11,4 @@ sitios: *.go
 	go build
 
 run:
-	ag --go -l | entr -r fish -c 'make sitios; and godotenv ./sitios'
+	ag --ignore bundle.js --ignore elm.js -l | entr -r fish -c 'make; and godotenv ./sitios'

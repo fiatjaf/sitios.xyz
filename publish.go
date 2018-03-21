@@ -29,6 +29,7 @@ func publish(site Site) error {
 	}
 
 	// generate the generate.js file to be passed to sitio
+	log.Debug().Str("subdomain", site.Subdomain).Msg("generating generate.js")
 	ctx := GenerateContext{
 		Globals: map[string]interface{}{
 			"rootURL":     "https://" + site.Subdomain + ".sitios.xyz",
@@ -64,6 +65,7 @@ func publish(site Site) error {
 	}
 
 	// run the generate.js file
+	log.Debug().Msg("generating site")
 	cmd := exec.Command("node_modules/.bin/sitio",
 		filepath.Join(dirname, "generate.js"),
 		"--body=body.js",
@@ -71,8 +73,9 @@ func publish(site Site) error {
 		"--target-dir="+filepath.Join(dirname, "_site"),
 	)
 	cmd.Dir = "skeleton"
+
 	out, err := cmd.CombinedOutput()
-	fmt.Printf(string(out))
+	fmt.Print(string(out))
 	if err != nil {
 		return err
 	}

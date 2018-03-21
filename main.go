@@ -337,7 +337,7 @@ func sendSite(sendMsg func(string), site Site) {
 func notLoggedNotify(conn *websocket.Conn, userch chan string) {
 	timeout := make(chan string, 1)
 	go func() {
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 		timeout <- ""
 	}()
 

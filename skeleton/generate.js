@@ -1,5 +1,5 @@
 const path = require('path')
-const {init, end, generatePage, plug} = require('sitio')
+const {init, end, generatePage, plug, copyStatic} = require('sitio')
 const parallel = require('run-parallel')
 
 const plugins = {
@@ -26,6 +26,10 @@ parallel(
       console.log('error running one of the sources', err)
       return
     }
+
+    copyStatic([
+      '**/*.*(jpeg|jpg|png|svg|txt)'
+    ])
 
     end()
   }
