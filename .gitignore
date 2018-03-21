@@ -5,3 +5,5 @@ sitios
 elm-stuff
 elm.js
 node_modules
+bundle.js
+browserify-cache.json

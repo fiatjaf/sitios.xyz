@@ -5,7 +5,8 @@ const parallel = require('run-parallel')
 const plugins = {
   'url:html': 'sitio-url',
   'url:markdown': 'sitio-url',
-  'trello:list': 'sitio-trello/list'
+  'trello:list': 'sitio-trello/list',
+  'evernote:note': 'sitio-evernote/note'
 }
 
 init({{ json .Globals }})

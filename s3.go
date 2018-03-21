@@ -108,7 +108,7 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 			}
 
 			objectname, _ := filepath.Rel(dirname, filename)
-			n, err := ms3.FPutObject(bucketName, objectname, filename,
+			_, err = ms3.FPutObject(bucketName, objectname, filename,
 				minio.PutObjectOptions{
 					ContentType: mimetype(filename),
 				})
@@ -116,10 +116,6 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 				return nil
 			}
 
-			log.Debug().
-				Str("file", filename).
-				Int("bytes", int(n)).
-				Msg("successfully uploaded")
 			return nil
 		})
 }

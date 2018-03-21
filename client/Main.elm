@@ -3,8 +3,8 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue)
 import Platform.Sub as Sub
 import String exposing (split, join, trim, toInt, isEmpty, left, right)
-import List exposing (head, drop, singleton, filter)
-import Array exposing (Array, push, get, set)
+import List exposing (head, drop, singleton, filter, intersperse)
+import Array exposing (Array)
 import Array.Extra
 import Result
 import Json.Decode exposing
@@ -19,7 +19,7 @@ import Ports exposing (..)
 
 
 type alias Model =
-  { log : Array Message
+  { log : List Message
   , user : Maybe String
   , sites : List SiteInfo
   , site : Maybe Site
@@ -58,24 +58,20 @@ sourceDecoder = map4 Source
   (field "root" string)
 
 type Message
-  = ChooseLoginMessage
-  | LoginMessage String
+  = LoginMessage String
   | SitesMessage (List SiteInfo)
   | EnterSiteMessage Int
   | SiteMessage Site
   | CreateSiteMessage String
-  | PublishMessage String
+  | PublishMessage Int
   | DeleteMessage String
-  | NoticeMessage Notice
+  | ErrorMessage String
+  | LoginSuccessMessage String
+  | CreateSiteSuccessMessage Int
+  | PublishSuccessMessage String
+  | DeleteSuccessMessage String
   | NotLoggedMessage
   | UnknownMessage String
-
-type Notice
-  = ErrorNotice String
-  | LoginSuccessNotice String
-  | CreateSiteSuccessNotice Int
-  | PublishSuccessNotice String
-  | DeleteSuccessNotice String
 
 parseMessage : String -> Message
 parseMessage m =
@@ -112,17 +108,15 @@ parseMessage m =
       Just "site" ->
         case decodeString siteDecoder data of
           Ok site -> SiteMessage site
-          Err err -> NoticeMessage (ErrorNotice err)
+          Err err -> ErrorMessage err
       Just "notice" ->
         case first_param |> split "=" |> head of
           Just "error" ->
             first_param |> split "=" |> drop 1 |> head |> withDefault ""
-              |> ErrorNotice
-              |> NoticeMessage
+              |> ErrorMessage
           Just "login-success" ->
             first_param |> split "=" |> drop 1 |> head |> withDefault ""
-              |> LoginSuccessNotice
-              |> NoticeMessage
+              |> LoginSuccessMessage
           Just "create-site-success" ->
             first_param
               |> split "="
@@ -130,24 +124,21 @@ parseMessage m =
               |> head
               |> Maybe.andThen (toInt >> Result.toMaybe)
               |> withDefault 0
-              |> CreateSiteSuccessNotice
-              |> NoticeMessage
+              |> CreateSiteSuccessMessage
           Just "publish-success" ->
             first_param
               |> split "="
               |> drop 1
               |> head
               |> withDefault ""
-              |> PublishSuccessNotice
-              |> NoticeMessage
+              |> PublishSuccessMessage
           Just "delete-success" ->
             first_param
               |> split "="
               |> drop 1
               |> head
               |> withDefault ""
-              |> DeleteSuccessNotice
-              |> NoticeMessage
+              |> DeleteSuccessMessage
           _ -> UnknownMessage m
       Just "not-logged" -> NotLoggedMessage
       _ -> UnknownMessage m
@@ -158,12 +149,12 @@ type Msg
   | LoginWith String
   | EnterSite Int
   | StartCreatingSite
-  | EditCreatingSite Int String
-  | FinishCreatingSite Int
+  | EditCreatingSite String
+  | FinishCreatingSite
   | EnterSource Source
   | AddSource Int
   | SourceAction Int Int SourceMsg
-  | Publish Int String
+  | Publish Int
   | Delete Int String
 
 type SourceMsg
@@ -185,10 +176,9 @@ update msg model =
       )
     NewMessage m ->
       let
-        nmessages = Array.length model.log
-        lastmessage = model.log |> get (nmessages - 1)
+        lastmessage = head model.log
         nextmessage = Debug.log "got message" <| parseMessage m
-        appendmessage = { model | log = model.log |> push nextmessage }
+        appendmessage = { model | log = model.log |> (::) nextmessage }
 
         nextmodel =
           if Just nextmessage == lastmessage then
@@ -196,14 +186,14 @@ update msg model =
           else case nextmessage of
             SiteMessage site -> { appendmessage | site = Just site }
             SitesMessage sites -> { appendmessage | sites = sites }
-            NoticeMessage (LoginSuccessNotice user) ->
+            LoginSuccessMessage user ->
               { appendmessage | user = Just user }
             _ -> appendmessage
 
         effect = case nextmessage of
-          NoticeMessage (CreateSiteSuccessNotice id) ->
+          CreateSiteSuccessMessage id ->
             send model.ws ("enter-site " ++ toString id)
-          NoticeMessage (LoginSuccessNotice user) ->
+          LoginSuccessMessage user ->
             send model.ws "list-sites"
           NotLoggedMessage ->
             case model.token of
@@ -213,31 +203,29 @@ update msg model =
       in
         ( nextmodel, effect )
     EnterSite id ->
-      ( { model | log = model.log |> push (EnterSiteMessage id) }
+      ( { model | log = model.log |> (::) (EnterSiteMessage id) }
       , send model.ws ("enter-site " ++ toString id)
       )
     StartCreatingSite ->
-      ( { model | log = model.log |> push (CreateSiteMessage "") }
+      ( { model | log = model.log |> (::) (CreateSiteMessage "") }
       , Cmd.none
       )
-    EditCreatingSite i v -> 
+    EditCreatingSite subdomain -> 
       ( { model
-          | log = model.log
-            |> Array.Extra.update
-              i
-              ( \el -> case el of
-                CreateSiteMessage _ -> CreateSiteMessage v
-                _ -> el
-              )
+          | site = case model.site of
+            Nothing -> Nothing
+            Just site -> Just { site | subdomain = subdomain }
         }
       , Cmd.none
       )
-    FinishCreatingSite i ->
-      case model.log |> get i of
-        Just (CreateSiteMessage subdomain) ->
-          ( model
-          , send model.ws ("create-site " ++ subdomain)
-          )
+    FinishCreatingSite ->
+      case model.site of
+        Just site ->
+          if site.id == 0 then
+            ( { model | site = Nothing }
+            , send model.ws ("create-site " ++ site.subdomain)
+            )
+          else ( model , Cmd.none )
         _ -> ( model, Cmd.none )
     EnterSource source ->
       ( { model | source = Just source }
@@ -273,12 +261,12 @@ update msg model =
             ( { model | source = nextsource }
             , effect
             )
-    Publish siteId subdomain ->
-      ( { model | log = model.log |> push (PublishMessage subdomain) }
+    Publish siteId ->
+      ( { model | log = model.log |> (::) (PublishMessage siteId) }
       , send model.ws ("publish " ++ toString siteId)
       )
     Delete siteId subdomain ->
-      ( { model | log = model.log |> push (DeleteMessage subdomain) }
+      ( { model | log = model.log |> (::) (DeleteMessage subdomain) }
       , send model.ws ("delete-site " ++ toString siteId)
       )
 
@@ -304,28 +292,40 @@ view model =
           ]
       Just username ->
         div [ id "main" ]
-          [ div [ id "list" ]
-            [ if List.length model.sites == 0 then
-                text "You don't have any sites yet. "
-              else ul []
-                <| (::) (text "Your sites: ")
-                <| List.map
-                  ( \site ->
-                    button [ onClick (EnterSite site.id) ] [ text site.subdomain ]
-                  )
-                <| model.sites
-            , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
-            ]
+          [ div [ id "list" ] <|
+            if List.length model.sites == 0 then
+              [ text "You don't have any sites yet. " ]
+            else
+              (::) (text "Your sites: ")
+              <| List.reverse
+              <| (::) (button [ onClick StartCreatingSite ] [ text "Create a new site" ])
+              <| List.reverse
+              <| List.map
+                ( \site ->
+                  button [ onClick (EnterSite site.id) ] [ text site.subdomain ]
+                )
+              <| model.sites
           , div [ id "site" ]
             [ case model.site of
               Nothing -> text ""
-              Just {subdomain, sources, id} ->
-                div []
-                  [ h1 []
-                    [ a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
-                      [ text subdomain ]
-                    , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
-                    , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
+              Just {id, subdomain, sources} ->
+                if id == 0 then -- creating site
+                  Html.form [ onSubmit FinishCreatingSite ]
+                    [ label []
+                      [ text "Please enter a subdomain:"
+                      , input [ onInput EditCreatingSite, value subdomain ] []
+                      ]
+                    , button [] [ text "Create" ]
+                    ]
+                else div [] -- already created
+                  [ div []
+                    [ a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+                      [ text "Visit site"
+                      ]
+                    ]
+                  , h1 [] [ text subdomain ]
+                  , div []
+                    [ button [ onClick (Publish id) ] [ text "Publish site" ]
                     ]
                   , ul []
                     <| List.map
@@ -338,6 +338,9 @@ view model =
                       )
                     <| Array.toList sources
                   , button [ onClick (AddSource id) ] [ text "Add a new data source" ]
+                  , div []
+                    [ button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
+                    ]
                   ]
             ]
           , div [ id "source" ]
@@ -347,115 +350,9 @@ view model =
                 _ -> text ""
             ]
           ]
-    , ul [ id "log" ]
-      <| List.indexedMap (viewMessage model)
-      <| Array.toList model.log
+    , div [ id "log" ]
+      <| List.indexedMap (viewMessage model) model.log
     ]
-
-viewMessage : Model -> Int -> Message -> Html Msg
-viewMessage model i message =
-  case message of
-    ChooseLoginMessage ->
-      li [ class "choose-login" ]
-        [ text "login using "
-        , button [ onClick (LoginUsing "twitter") ] [ text "twitter" ]
-        , text ", "
-        , button [ onClick (LoginUsing "github") ] [ text "github" ]
-        , text " or "
-        , button [ onClick (LoginUsing "trello") ] [ text "trello" ]
-        ]
-    LoginMessage token ->
-      li [ class "login" ]
-        [ text "Trying to log in with "
-        , a [ target "_blank", href "https://accountd.xyz/" ] [ text "accountd.xyz" ]
-        , text " token "
-        , em [] [ text <| left 4 token ++ "..." ++ right 3 token ]
-        , text "."
-        ]
-    SitesMessage sites ->
-      li [ class "sites" ]
-        [ if List.length sites == 0 then
-            text "You don't have any sites yet. "
-          else ul []
-            <| (::) (text "Your sites: ")
-            <| List.map
-              ( \site ->
-                button [ onClick (EnterSite site.id) ] [ text site.subdomain ]
-              )
-            <| sites
-        , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
-        ]
-    EnterSiteMessage id ->
-      li [ class "enter-site" ]
-        [ text "entering site "
-        , em [] [ text <| toString id ]
-        ]
-    SiteMessage {id, subdomain, sources} ->
-      li [ class "site" ]
-        [ div []
-          [ h1 []
-            [ a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank"]
-              [ text subdomain ]
-            , button [ onClick (Publish id subdomain) ] [ text "Publish site" ]
-            , button [ onClick (Delete id subdomain) ] [ text "Delete site" ]
-            ]
-          , button [ onClick (AddSource id) ] [ text "Add a new data source" ]
-          ]
-        ]
-    CreateSiteMessage subdomain ->
-      li [ class "create-site" ]
-        [ text "Creating site. "
-        , Html.form [ onSubmit (FinishCreatingSite i) ]
-          [ label []
-            [ text "Please enter a subdomain:"
-            , input [ onInput (EditCreatingSite i), value subdomain ] []
-            ]
-          , button [] [ text "Create" ]
-          ]
-        ]
-    PublishMessage subdomain ->
-      li [ class "publish" ]
-        [ text "Publishing site to "
-        , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
-          [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
-          ]
-        , text "."
-        ]
-    DeleteMessage subdomain ->
-      li [ class "delete" ]
-        [ text "Deleting "
-        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
-        , text "."
-        ]
-    NoticeMessage not ->
-      case not of
-        ErrorNotice err -> li [ class "notice error" ] [ text err ] 
-        LoginSuccessNotice user -> li [ class "notice login-success" ]
-          [ text "Logged in successfully as "
-          , em [] [ text user ]
-          , text "."
-          ] 
-        CreateSiteSuccessNotice id -> li [ class "notice create-site-success" ]
-          [ text "Created site successfully with id "
-          , em [] [ text <| toString id ]
-          , text "."
-          ]
-        PublishSuccessNotice subdomain -> li [ class "notice publish-success" ]
-          [ text "Publish successfully to "
-          , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
-            [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
-            ]
-          , text "."
-          ]
-        DeleteSuccessNotice subdomain -> li [ class "notice delete-success" ]
-          [ text "Deleted "
-          , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
-          , text "."
-          ]
-    NotLoggedMessage -> case model.token of
-      Just _ -> li [ class "not-logged" ] [ text "you were disconnected." ]
-      Nothing -> viewMessage model i ChooseLoginMessage
-    UnknownMessage m -> li [ class "unknown" ] [ text m ]
 
 viewSource : Source -> Html SourceMsg
 viewSource {id, provider, reference, root} =
@@ -467,12 +364,17 @@ viewSource {id, provider, reference, root} =
       ]
     , label []
       [ text "Provider:"
-      , select [ value provider, on "change" (Json.Decode.map EditProvider targetValue) ]
-        [ option [] [ text "" ]
-        , option [] [ text "url:html" ]
-        , option [] [ text "url:markdown" ]
-        , option [] [ text "trello:list" ]
-        ]
+      , select [ on "change" (Json.Decode.map EditProvider targetValue) ]
+        <| List.map
+          ( \p ->
+            option [ selected <| provider == p ] [ text p ]
+          )
+        <| [ ""
+           , "url:html"
+           , "url:markdown"
+           , "trello:list"
+           , "evernote:note"
+           ]
       ]
     , label []
       [ text "Reference:"
@@ -485,6 +387,80 @@ viewSource {id, provider, reference, root} =
       [ button [ onClick RemoveSource ] [ text "Delete" ]
       ]
     ]
+
+viewMessage : Model -> Int -> Message -> Html Msg
+viewMessage model i message =
+  case message of
+    LoginMessage token ->
+      div []
+        [ text "Trying to log in with "
+        , a [ target "_blank", href "https://accountd.xyz/" ] [ text "accountd.xyz" ]
+        , text " token "
+        , em [] [ text <| left 4 token ++ "..." ++ right 3 token ]
+        , text "."
+        ]
+    SitesMessage sites ->
+      div []
+        [ text "Got list of sites: "
+        , span []
+          <| intersperse (text ", ")
+          <| List.map (\{subdomain} -> em [] [ text subdomain ])
+          <| sites
+        ]
+    EnterSiteMessage id ->
+      div []
+        [ text "Entering site "
+        , em [] [ text <| toString id ]
+        ]
+    SiteMessage {id, subdomain, sources} ->
+      div []
+        [ text "Entered site "
+        , em [] [ text <| toString id ]
+        , text ", "
+        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+        , text <| ", with " ++ (toString <| Array.length sources) ++ " sources."
+        ]
+    CreateSiteMessage subdomain ->
+      div [] [ text "Creating site..." ]
+    PublishMessage id ->
+      div []
+        [ text "Publishing site "
+        , em [] [ text <| toString id ]
+        , text "."
+        ]
+    DeleteMessage subdomain ->
+      div []
+        [ text "Deleting "
+        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+        , text "."
+        ]
+    ErrorMessage err -> div [ class "error" ] [ text err ] 
+    LoginSuccessMessage user -> div [ class "login-success" ]
+      [ text "Logged in successfully as "
+      , em [] [ text user ]
+      , text "."
+      ] 
+    CreateSiteSuccessMessage id -> div []
+      [ text "Created site successfully with id "
+      , em [] [ text <| toString id ]
+      , text "."
+      ]
+    PublishSuccessMessage subdomain -> div []
+      [ text "Publish successfully to "
+      , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
+        [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
+        ]
+      , text "."
+      ]
+    DeleteSuccessMessage subdomain -> div []
+      [ text "Deleted "
+      , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+      , text "."
+      ]
+    NotLoggedMessage -> case model.token of
+      Just _ -> div [] [ text "You were disconnected." ]
+      Nothing -> div [] [ text "Waiting for login." ]
+    UnknownMessage m -> li [ class "unknown" ] [ text m ]
 
 main =
   Html.programWithFlags
@@ -503,8 +479,8 @@ init : Flags -> (Model, Cmd Msg)
 init {token, ws} =
   ( { log =
         case token of
-          Just t -> Array.fromList [ LoginMessage t ]
-          Nothing -> Array.fromList [ ChooseLoginMessage ]
+          Just t -> [ LoginMessage t ]
+          Nothing -> [ NotLoggedMessage ]
     , user = Nothing
     , sites = []
     , site = Nothing

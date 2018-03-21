@@ -5,8 +5,8 @@
 html, body { margin: 0; padding: 0; }
 
 html {
-  background: #272624;
-  color: white;
+  background: #f1e0be;
+  color: #2b2525;
 }
 
 a {
@@ -19,8 +19,7 @@ h1 {
 
 body {
   font-size: 135%;
-  width: 80%;
-  margin: 32px auto;
+  width: 100%;
 }
 
 ul {
@@ -28,18 +27,75 @@ ul {
   margin: 0;
 }
 
+button, input, select {
+  font-size: 100%;
+  padding: 1px;
+}
+
+header {
+  margin-top: 7px;
+}
+  header img {
+    width: 50px;
+    margin-bottom: -7px;
+  }
+
+#login,
+#main {
+  height: 600px;
+  width: 80%;
+  margin: 30px auto;
+}
+
 #login {}
 
 #main {
-  height: 600px;
   display: flex;
 }
-  #list {}
-  #site {}
+  #main > * {
+    padding: 2px 26px;
+  }
+  #list {
+    display: flex;
+    flex-direction: column;
+  }
+    #list button {
+      margin: 2px 0;
+    }
+  #site {
+    min-width: 300px;
+  }
+    #site h1 {
+      text-align: center;
+    }
+    #site a {
+      cursor: pointer;
+      color: #686875;
+    }
+    #site ul {
+      margin: 6px 0;
+    }
+    #site li {
+      list-style: none;
+    }
   #source {}
+    #source label {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+    }
+      #source label input,
+      #source label select {
+        margin-left: 12px;
+        width: 340px;
+      }
 
 #log {
-  height: (100vh - 600px)
+  height: auto;
+  color: white;
+  background: #333;
+  margin: auto;
+  padding: 12px;
 }
   #log > li {
     margin: 6px 0;
