@@ -17,6 +17,7 @@ import (
 
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Logger()
 var acd = accountd.NewClient()
+var serviceURL = os.Getenv("SERVICE_URL")
 
 func main() {
 	pg, err := sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
@@ -40,7 +41,7 @@ func main() {
 
 		handle(pg, conn)
 	})
-
+	http.HandleFunc("/trello-list-id", trelloListIdHandle)
 	http.Handle("/", http.FileServer(http.Dir("./")))
 
 	port := os.Getenv("PORT")

@@ -1,0 +1,90 @@
+<!doctype html>
+
+<meta charset=utf-8>
+<title>Trello List Id Finder, by sitios.xyz</title>
+<style>
+html, body {
+  background: #333;
+}
+* {
+  font-family: monospace;
+}
+body {
+  color: white;
+  padding: 18px;
+  font-size: 120%;
+}
+input { width: 200px; }
+table { margin-bottom: 40px; }
+td { padding: 0 4px; }
+tr:hover td { background-color: #555; }
+</style>
+
+<table style="display: none">
+  <thead>
+    <tr>
+      <th>list name</th>
+      <th>id</th>
+      <th>open</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+<form method=get action="https://trello.com/1/authorize">
+  <input type=hidden name=expiration value=1hour>
+  <input type=hidden name=scope value=read>
+  <input type=hidden name=response_type value=token>
+  <input type=hidden name=name value="List Id Finder by sitios.xyz">
+  <input type=hidden name=key value={{ .trelloKey }}>
+  <input type=hidden name=return_url value="{{ .serviceURL }}/trello-list-id">
+  <label>
+    Paste your <b>board</b> URL here: 
+    <input id=board_url>
+  </label>
+  <button>Ok</button>
+</form>
+
+<script>
+if (location.hash.length) {
+  document.querySelector('table').style.display = 'table'
+
+  let boardURL = sessionStorage.getItem('board_url')
+  let boardShortLink = boardURL.split('/')[4]
+  let key = document.querySelector('[name="key"]').value
+  let token = location.hash.split('=')[1]
+
+  location.hash = ''
+
+  fetch('https://api.trello.com/1/board/' + boardShortLink + '/lists?fields=name,closed&filter=all&key=' + key + '&token=' + token)
+    .then(r => r.json())
+    .then(lists => {
+      let tbody = document.querySelector('tbody')
+
+      lists
+        .sort((a, b) => a.closed - b.closed)
+        .forEach(({id, name, closed}) => {
+          let open = closed ? 'no' : 'yes'
+          let tr = document.createElement('tr')
+
+          let tdName = document.createElement('td')
+          tdName.innerHTML = name
+          tr.appendChild(tdName)
+          let tdId = document.createElement('td')
+          tdId.innerHTML = id
+          tr.appendChild(tdId)
+          let tdOpen = document.createElement('td')
+          tdOpen.innerHTML = open
+          tr.appendChild(tdOpen)
+
+          tbody.appendChild(tr)
+        })
+    })
+    .catch(console.log.bind(console))
+} else {
+  document.getElementById('board_url').addEventListener('input', e => {
+    e.preventDefault()
+    sessionStorage.setItem('board_url', e.target.value)
+  })
+}
+</script>
