@@ -112,7 +112,7 @@ type SourceMsg
   = EditRoot String
   | EditProvider String
   | EditReference String
-  | SaveSourceEdits
+  | SaveSource
   | RemoveSource
   | LeaveSource
 
@@ -263,7 +263,7 @@ viewSource {id, provider, reference, root} =
       , input [ value reference, onInput EditReference ] []
       ]
     , div []
-      [ button [ onClick SaveSourceEdits ] [ text "Save" ]
+      [ button [ onClick SaveSource ] [ text "Save" ]
       ]
     , div []
       [ button [ onClick RemoveSource ] [ text "Delete" ]

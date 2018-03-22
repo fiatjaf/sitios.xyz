@@ -70,12 +70,12 @@ update msg model =
       in
         ( nextmodel, effect )
     EnterSite id ->
-      ( { model | log = model.log |> (::) (EnterSiteMessage id) }
+      ( { model | log = EnterSiteMessage id :: model.log }
       , send model.ws ("enter-site " ++ toString id)
       )
     StartCreatingSite ->
       ( { model
-          | log = model.log |> (::) (CreateSiteMessage "")
+          | log = InitCreateSiteMessage :: model.log
           , site = Just emptySite
         }
       , Cmd.none
@@ -89,7 +89,10 @@ update msg model =
           )
         FinishCreatingSite -> 
           if site.id == 0 then
-            ( { model | site = Nothing }
+            ( { model
+                | site = Nothing
+                , log = EndCreateSiteMessage site.subdomain :: model.log
+              }
             , send model.ws ("create-site " ++ site.subdomain)
             )
           else ( model , Cmd.none )
@@ -119,7 +122,13 @@ update msg model =
               _ -> data
             newsite = { site | data = newdata }
           in
-            ( { model | site = Just newsite }
+            ( { model
+                | site = Just newsite
+                , log =
+                  case sdmsg of
+                    SaveSiteData -> SaveSiteDataMessage :: model.log
+                    _ -> model.log
+              }
             , case sdmsg of
               SaveSiteData ->
                 let
@@ -137,11 +146,14 @@ update msg model =
           , send model.ws ("delete-site " ++ toString site.id)
           )
         EnterSource source ->
-          ( { model | source = Just source }
+          ( { model
+              | source = Just source
+              , log = EnterSourceMessage source.id source.root :: model.log
+            }
           , Cmd.none
           )
         AddSource ->
-          ( model 
+          ( { model | log = AddingNewSourceMessage site.id :: model.log }
           , send model.ws ("add-source " ++ toString site.id)
           )
         SourceAction siteId sourceId sourcemsg ->
@@ -155,8 +167,9 @@ update msg model =
                   EditReference ref -> Just { source | reference = ref }
                   LeaveSource -> Nothing
                   _ -> model.source
+
                 effect = case sourcemsg of
-                  SaveSourceEdits ->
+                  SaveSource ->
                     let
                       json = "{\"root\":\"" ++ source.root ++ "\",\"provider\":\""
                              ++ source.provider ++ "\", \"reference\":\""
@@ -166,8 +179,17 @@ update msg model =
                   RemoveSource ->
                     send model.ws ("remove-source " ++ toString sourceId)
                   _ -> Cmd.none
+
+                nextlog = case sourcemsg of
+                  LeaveSource -> LeaveSourceMessage source.id :: model.log
+                  SaveSource -> SaveSourceMessage source.id source.root :: model.log
+                  RemoveSource -> RemoveSourceMessage source.id source.root :: model.log
+                  _ -> model.log
               in
-                ( { model | source = nextsource }
+                ( { model
+                    | source = nextsource
+                    , log = nextlog
+                  }
                 , effect
                 )
 

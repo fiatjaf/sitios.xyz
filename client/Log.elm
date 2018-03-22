@@ -14,9 +14,16 @@ type Message
   | SitesMessage (List (Int, String))
   | EnterSiteMessage Int
   | SiteMessage Site
-  | CreateSiteMessage String
+  | InitCreateSiteMessage
+  | EndCreateSiteMessage String
+  | SaveSiteDataMessage
   | PublishMessage Int
   | DeleteMessage String
+  | EnterSourceMessage Int String
+  | AddingNewSourceMessage Int
+  | LeaveSourceMessage Int
+  | SaveSourceMessage Int String
+  | RemoveSourceMessage Int String
   | ErrorMessage String
   | LoginSuccessMessage String
   | CreateSiteSuccessMessage Int
@@ -119,17 +126,62 @@ viewMessage message =
       div []
         [ text "Entering site "
         , em [] [ text <| toString id ]
+        , text "."
         ]
     SiteMessage {id, subdomain, sources} ->
       div []
-        [ text "Entered site "
+        [ text "Got site "
         , em [] [ text <| toString id ]
         , text ", "
         , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
         , text <| ", with " ++ (toString <| List.length sources) ++ " sources."
         ]
-    CreateSiteMessage subdomain ->
-      div [] [ text "Creating site..." ]
+    InitCreateSiteMessage ->
+      div [] [ text "Waiting for a subdomain to identify the new site..." ]
+    EndCreateSiteMessage subdomain ->
+      div []
+        [ text "Creating site with subdomain"
+        , em [] [ text subdomain ]
+        , text "."
+        ]
+    SaveSiteDataMessage ->
+      div [] [ text "Saving site data..." ]
+    EnterSourceMessage id root ->
+      div []
+        [ text "Entering source "
+        , em [] [ text <| toString id ]
+        , text " rooted on "
+        , em [] [ text root ]
+        , text "."
+        ]
+    AddingNewSourceMessage siteId ->
+      div []
+        [ text "Adding new source on site "
+        , em [] [ text <| toString siteId ]
+        , text "."
+        ]
+    LeaveSourceMessage id ->
+      div []
+        [ text "Leaving source "
+        , em [] [ text <| toString id ]
+        , text "."
+        ]
+    SaveSourceMessage id root ->
+      div []
+        [ text "Saving edits made to source "
+        , em [] [ text <| toString id ]
+        , text " on "
+        , em [] [ text root ]
+        , text "."
+        ]
+    RemoveSourceMessage id root ->
+      div []
+        [ text "Removing source "
+        , em [] [ text <| toString id ]
+        , text " from "
+        , em [] [ text root ]
+        , text "."
+        ]
     PublishMessage id ->
       div []
         [ text "Publishing site "
