@@ -23,7 +23,7 @@ module.exports = props => [
   h('nav', {key: 'nav'}, [
     h('ul', props.global.nav.map(ni =>
       h('li', {key: ni.url}, [
-        h('a', {href: ni.url}, ni.text)
+        h('a', {href: ni.url}, ni.txt)
       ])
     ))
   ]),

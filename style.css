@@ -29,7 +29,21 @@ ul {
 
 button, input, select {
   font-size: 100%;
+  min-height: 28px;
   padding: 1px;
+}
+
+body > header {
+  width: 900px;
+  margin: 10px auto;
+  text-align: center;
+}
+
+#login,
+#main {
+  min-height: 400px;
+  width: 900px;
+  margin: 30px auto;
 }
 
 header {
@@ -39,13 +53,6 @@ header {
     width: 50px;
     margin-bottom: -7px;
   }
-
-#login,
-#main {
-  height: 600px;
-  width: 80%;
-  margin: 30px auto;
-}
 
 #login {}
 
@@ -58,6 +65,7 @@ header {
   #list {
     display: flex;
     flex-direction: column;
+    flex-shrink: 3;
   }
     #list button {
       margin: 2px 0;
@@ -65,7 +73,7 @@ header {
   #site {
     min-width: 300px;
   }
-    #site h1 {
+    #site header {
       text-align: center;
     }
     #site a {
@@ -78,6 +86,41 @@ header {
     #site li {
       list-style: none;
     }
+
+    #site-data {}
+      #site-data label {
+        display: flex;
+        justify-content: space-between;
+        margin: 4px 0;
+        flex-wrap: wrap;
+      }
+        #site-data input,
+        #site-data textarea {
+          width: 290px;
+          min-width: 290px;
+          max-width: 290px;
+        }
+        #site-data textarea { min-height: 80px; }
+      #site-data .label {
+        display: flex;
+        justify-content: space-between;
+      }
+      #site-data .subitems {}
+        #site-data .subitems > * {
+          margin-top: 3px;
+          display: flex;
+          flex-wrap: wrap;
+        }
+          #site-data .subitems > * input { flex-grow: 2; }
+          #site-data .subitems > * button { flex-shrink: 2; }
+        #site-data .subitems input {
+          width: initial;
+          max-width: initial;
+          min-width: initial;
+        }
+      #site-data .submit {
+        text-align: right;
+      }
   #source {}
     #source label {
       display: flex;
@@ -92,6 +135,7 @@ header {
 
 #log {
   height: auto;
+  min-height: 300px;
   color: white;
   background: #333;
   margin: auto;

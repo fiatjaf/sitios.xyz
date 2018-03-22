@@ -140,6 +140,28 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 			}
 			sendMsg("notice create-site-success=" + strconv.Itoa(id))
 			break
+		case "update-site-data":
+			spl := strings.SplitN(m[1], " ", 2)
+			siteId, err := strconv.Atoi(spl[0])
+			if err != nil {
+				sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
+				continue
+			}
+
+			sitedata := []byte(spl[1])
+			site, err := updateSiteData(pg, user, siteId, sitedata)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("user", user).
+					Int("site", siteId).
+					Msg("couldn't update site data")
+				sendMsg("notice error=" + err.Error())
+				continue
+			}
+
+			sendSite(sendMsg, site)
+			break
 		case "delete-site":
 			id, err := strconv.Atoi(m[1])
 			if err != nil {

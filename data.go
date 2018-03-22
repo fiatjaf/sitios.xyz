@@ -62,6 +62,17 @@ FROM sites WHERE owner = $1 AND id = $2
 	return
 }
 
+func updateSiteData(pg *sqlx.DB, user string, siteId int, data []byte) (site Site, err error) {
+	_, err = pg.Exec(`
+UPDATE sites SET data = $3
+WHERE owner = $1 AND id = $2
+    `, user, siteId, data)
+	if err != nil {
+		return
+	}
+	return fetchSite(pg, user, siteId)
+}
+
 func addSource(pg *sqlx.DB, user string, siteId int) (site Site, err error) {
 	_, err = pg.Exec(`
 INSERT INTO sources (site, provider, reference, root)

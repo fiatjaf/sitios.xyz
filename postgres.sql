@@ -2,7 +2,18 @@ CREATE TABLE sites (
   id serial PRIMARY KEY,
   owner text,
   subdomain text UNIQUE,
-  data jsonb NOT NULL DEFAULT '{}'
+  data jsonb NOT NULL DEFAULT '{
+    "favicon": "https://lorempixel.com/56/56/",
+    "name": "",
+    "description": "",
+    "aside": "",
+    "footer": "",
+    "includes": [],
+    "nav": [{
+      "txt": "Home",
+      "url": "/"
+    }]
+  }'
 );
 
 CREATE TABLE sources (
@@ -15,3 +26,5 @@ CREATE TABLE sources (
 
   data jsonb NOT NULL DEFAULT '{}' -- anything the providers may need
 );
+
+

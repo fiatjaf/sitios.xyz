@@ -28,18 +28,17 @@ func publish(site Site) error {
 		return err
 	}
 
+	var globals map[string]interface{}
+	err = site.Data.Unmarshal(&globals)
+	if err != nil {
+		return err
+	}
+	globals["rootURL"] = "https://" + site.Subdomain + ".sitios.xyz"
+
 	// generate the generate.js file to be passed to sitio
 	log.Debug().Str("subdomain", site.Subdomain).Msg("generating generate.js")
 	ctx := GenerateContext{
-		Globals: map[string]interface{}{
-			"rootURL":     "https://" + site.Subdomain + ".sitios.xyz",
-			"name":        "unnamed",
-			"description": "~",
-			"nav":         []map[string]string{},
-			"aside":       "",
-			"footer":      "",
-			"includes":    []string{},
-		},
+		Globals: globals,
 		Sources: sources,
 	}
 
