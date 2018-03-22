@@ -13,11 +13,10 @@ type Site struct {
 }
 
 type Source struct {
-	Id        int                    `json:"id"`
-	Provider  string                 `json:"provider"`
-	Reference string                 `json:"reference"`
-	Root      string                 `json:"root"`
-	Data      map[string]interface{} `json:"data"`
+	Id       int            `json:"id"`
+	Provider string         `json:"provider"`
+	Root     string         `json:"root"`
+	Data     types.JSONText `json:"data"`
 }
 
 func listSites(pg *sqlx.DB, user string) (sites []Site, err error) {
@@ -53,7 +52,7 @@ SELECT
   id, subdomain, data,
   ( SELECT coalesce(json_agg(row_to_json(source)), '[]'::json)
     FROM (
-      SELECT id, provider, reference, root, data
+      SELECT id, provider, root, data
       FROM sources WHERE sources.site = sites.id
     )source
   ) AS sources
@@ -92,10 +91,10 @@ WITH target AS (
   INNER JOIN sites ON sources.site = sites.id
   WHERE sites.owner = $1 AND sources.id = $2
 )
-UPDATE sources SET root=$3, provider=$4, reference=$5
+UPDATE sources SET root=$3, provider=$4, data=$5
 WHERE id = (SELECT source_id FROM target)
 RETURNING (SELECT site_id FROM target)
-    `, user, source.Id, source.Root, source.Provider, source.Reference)
+    `, user, source.Id, source.Root, source.Provider, source.Data)
 	if err != nil {
 		return
 	}

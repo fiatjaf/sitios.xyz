@@ -21,10 +21,6 @@ CREATE TABLE sources (
   site int REFERENCES sites (id),
   provider text NOT NULL, -- trello:card, trello:board, trello:list,
                           -- url:html, url:markdown
-  reference text NOT NULL, -- url, trello card id etc.
   root text NOT NULL -- where in the site this will appear: '/', '/posts' etc.
-
   data jsonb NOT NULL DEFAULT '{}' -- anything the providers may need
 );
-
-

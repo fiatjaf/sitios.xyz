@@ -5,11 +5,13 @@ import Platform.Sub as Sub
 import List exposing (head, drop, singleton, filter, intersperse)
 import Array exposing (set, get, append, slice, push)
 import WebSocket exposing (listen, send)
+import Dict
 import Json.Encode as E
 
 import Ports exposing (..)
 import Log exposing (..)
 import Site exposing (..)
+import Source exposing (..)
 
 type alias Model =
   { log : List Message
@@ -163,19 +165,24 @@ update msg model =
               let
                 nextsource = case sourcemsg of
                   EditRoot root -> Just { source | root = root }
-                  EditProvider provider -> Just { source | provider = provider }
-                  EditReference ref -> Just { source | reference = ref }
+                  EditProvider provider -> Just
+                    { source
+                      | provider = provider
+                      , data = Dict.empty
+                    }
                   LeaveSource -> Nothing
+                  EditSourceDataValue key value -> Just
+                    { source | data = source.data |> Dict.insert key value
+                    }
                   _ -> model.source
 
                 effect = case sourcemsg of
                   SaveSource ->
                     let
-                      json = "{\"root\":\"" ++ source.root ++ "\",\"provider\":\""
-                             ++ source.provider ++ "\", \"reference\":\""
-                             ++ source.reference ++ "\"}"
-                      m = ("update-source " ++ toString sourceId ++ " " ++ json)
-                    in send model.ws m
+                      json = E.encode 0 <| sourceEncoder source
+                      m = "update-source " ++ toString sourceId ++ " " ++ json
+                    in
+                      send model.ws m
                   RemoveSource ->
                     send model.ws ("remove-source " ++ toString sourceId)
                   _ -> Cmd.none

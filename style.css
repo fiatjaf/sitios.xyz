@@ -10,7 +10,7 @@ html {
 }
 
 a {
-  color: #e3ffff;
+  color: #686875;
 }
 
 h1 {
@@ -78,7 +78,6 @@ header {
     }
     #site a {
       cursor: pointer;
-      color: #686875;
     }
     #site ul {
       margin: 6px 0;
@@ -122,16 +121,36 @@ header {
         text-align: right;
       }
   #source {}
+    #source .close {
+      text-align: right;
+      margin: 12px;
+    }
+    #source .provider-data {}
+      #source .provider-data label {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      #source .provider-data input,
+      #source .provider-data select {
+        flex-grow: 2;
+        margin-left: 4px;
+      }
     #source label {
       display: flex;
       justify-content: space-between;
       margin: 4px 0;
     }
-      #source label input,
-      #source label select {
+      #source label.root input,
+      #source label.provider select {
         margin-left: 12px;
         width: 340px;
       }
+    #source .delete-save {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-around;
+    }
 
 #log {
   height: auto;

@@ -2,10 +2,13 @@ module Site exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue)
+import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue, onCheck)
+import Dict exposing (Dict)
 import Array exposing (Array)
 import Json.Decode as D
 import Json.Encode as E
+
+import Source exposing (..)
 
 type alias Site =
   { id : Int
@@ -27,13 +30,6 @@ type alias SiteData =
   }
 
 emptySiteData = SiteData "" "" "" Array.empty "" "" Array.empty
-
-type alias Source =
-  { id : Int
-  , provider : String
-  , reference : String
-  , root : String
-  }
 
 siteDecoder = D.map4 Site
   (D.field "id" D.int)
@@ -77,13 +73,6 @@ siteDataEncoder data =
     , ("footer", E.string data.footer)
     ]
 
-sourceDecoder = D.map4 Source
-  (D.field "id" D.int)
-  (D.field "provider" D.string)
-  (D.field "reference" D.string)
-  (D.field "root" D.string)
-
-
 type Msg
   = EditSubdomain String
   | FinishCreatingSite
@@ -92,7 +81,7 @@ type Msg
   | Delete
   | EnterSource Source
   | AddSource
-  | SourceAction Int Int SourceMsg
+  | SourceAction Int Int Source.Msg
 
 type SiteDataMsg
   = EditName String
@@ -107,14 +96,6 @@ type SiteDataMsg
   | EditNavItem Int { txt : String, url : String }
   | RemoveNavItem Int
   | SaveSiteData
-
-type SourceMsg
-  = EditRoot String
-  | EditProvider String
-  | EditReference String
-  | SaveSource
-  | RemoveSource
-  | LeaveSource
 
 
 viewSite : Site -> Html Msg
@@ -236,36 +217,3 @@ viewSiteData {name, description, favicon, aside, footer, includes, nav} =
       ]
     ]
 
-viewSource : Source -> Html SourceMsg
-viewSource {id, provider, reference, root} =
-  div []
-    [ button [ onClick LeaveSource ] [ text "close" ]
-    , label []
-      [ text "Root:"
-      , input [ value root, onInput EditRoot ] []
-      ]
-    , label []
-      [ text "Provider:"
-      , select [ on "change" (D.map EditProvider targetValue) ]
-        <| List.map
-          ( \p ->
-            option [ selected <| provider == p ] [ text p ]
-          )
-        <| [ ""
-           , "url:html"
-           , "url:markdown"
-           , "trello:list"
-           , "evernote:note"
-           ]
-      ]
-    , label []
-      [ text "Reference:"
-      , input [ value reference, onInput EditReference ] []
-      ]
-    , div []
-      [ button [ onClick SaveSource ] [ text "Save" ]
-      ]
-    , div []
-      [ button [ onClick RemoveSource ] [ text "Delete" ]
-      ]
-    ]

@@ -11,7 +11,7 @@ const plugins = {
 
 init({{ json .Globals }})
 
-let tasks = {{ json .Sources }}.map(({provider, reference, root, data}) => function (done) {
+let tasks = {{ json .Sources }}.map(({provider, root, data}) => function (done) {
   let pluginName = plugins[provider]
   if (!pluginName) return
 
