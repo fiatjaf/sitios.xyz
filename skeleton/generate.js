@@ -6,6 +6,7 @@ const plugins = {
   'url:html': 'sitio-url',
   'url:markdown': 'sitio-url',
   'trello:list': 'sitio-trello/list',
+  'trello:board': 'sitio-trello/board',
   'evernote:note': 'sitio-evernote/note'
 }
 

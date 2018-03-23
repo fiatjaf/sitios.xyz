@@ -237,6 +237,101 @@ providers =
         ]
       ]
     )
+  , ( "trello:board", \data ->
+    let
+      apiKey =
+        ( get "apiKey" data
+          |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+          |> maybeJoin
+          |> withDefault "ac61d8974aa86dd25f9597fa651a2ed8"
+        )
+    in div [ class "provider-data" ]
+      [ p [ class "explanation" ]
+        [ text "Same behavior as "
+        , a [ href "https://websitesfortrello.com/", target "_blank" ]
+          [ text "Websites for Trello" ]
+        , text ", but embedded in a subpath of your choice."
+        , text "To mimic the behavior exactly, just set the root path to /." 
+        ]
+      , label []
+        [ text "API key: "
+        , input
+          [ onInput (E.string >> EditSourceDataValue "apiKey")
+          , value apiKey
+          ] []
+        , p [] [ text "If you don't know what is this, use the default value." ]
+        ]
+      , label []
+        [ text "API token: "
+        , input
+          [ onInput (E.string >> EditSourceDataValue "apiToken")
+          , value
+            ( get "apiToken" data
+              |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault ""
+            )
+          ] []
+        , p []
+          [ text "To get an API token, visit "
+          , a [ href <| "https://trello.com/1/authorize?expiration=never&scope=read&response_type=token&name=sitios.xyz&key=" ++ apiKey, target "_blank" ] [ text "this page" ]
+          , text " and authorize "
+          , em [] [ text "read-only" ]
+          , text " access to your Trello data."
+          ]
+        ]
+      , label []
+        [ text "ref: "
+        , input
+          [ onInput (E.string >> EditSourceDataValue "ref")
+          , value
+            ( get "ref" data
+              |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault ""
+            )
+          ] []
+        , p [] [ text "The URL or id or shortLink of the desired Trello board." ]
+        ]
+      , label []
+        [ text "posts per page: "
+        , input
+          [ onInput (E.string >> EditSourceDataValue "postsPerPage")
+          , value
+            ( get "postsPerPage" data
+              |> Maybe.map ( D.decodeValue D.int >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault 7
+              |> toString
+            )
+          ] []
+        , p []
+          [ text "The number of entries which will appear in the index page and "
+          , text "in all subsequent "
+          , code [] [ text "/p/{n}" ]
+          , text " pagination pages. If you just want a single page with all "
+          , text "entries, set this to a very high number."
+          ]
+        ]
+      , label []
+        [ text "excerpts: "
+        , input
+          [ type_ "checkbox"
+          , onCheck (E.bool >> EditSourceDataValue "excerpts")
+          , checked
+            ( get "excerpts" data
+              |> Maybe.map ( D.decodeValue D.bool >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault True
+            )
+          ] []
+        , p []
+          [ text "Check this if you want the index and pagination pages to "
+          , text "show small excerpts of each post/card content."
+          ]
+        ]
+      ]
+    )
   , ( "evernote:note", \data -> div [ class "provider-data" ]
       [ p [ class "explanation" ]
         [ text "Given an Evernote "
