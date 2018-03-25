@@ -22,6 +22,7 @@ emptySite = Site 0 "" [] emptySiteData
 
 type alias SiteData =
   { favicon : String
+  , header : String
   , name : String
   , description : String
   , nav : Array { url : String, txt: String }
@@ -30,7 +31,7 @@ type alias SiteData =
   , includes : Array String
   }
 
-emptySiteData = SiteData "" "" "" Array.empty "" "" Array.empty
+emptySiteData = SiteData "" "" "" "" Array.empty "" "" Array.empty
 
 siteDecoder = D.map4 Site
   (D.field "id" D.int)
@@ -38,8 +39,13 @@ siteDecoder = D.map4 Site
   (D.field "sources" (D.list sourceDecoder))
   (D.field "data" siteDataDecoder)
 
-siteDataDecoder = D.map7 SiteData
+siteDataDecoder = D.map8 SiteData
   (D.field "favicon" D.string)
+  (D.oneOf
+    [ D.field "header" D.string
+    , D.succeed ""
+    ]
+  )
   (D.field "name" D.string)
   (D.field "description" D.string)
   (D.field "nav"
@@ -56,6 +62,7 @@ siteDataDecoder = D.map7 SiteData
 siteDataEncoder data =
   E.object
     [ ("favicon", E.string data.favicon)
+    , ("header", E.string data.header)
     , ("name", E.string data.name)
     , ("description", E.string data.description)
     , ("includes", E.array
@@ -86,6 +93,7 @@ type Msg
 
 type SiteDataMsg
   = EditName String
+  | EditHeader String
   | EditDescription String
   | EditFavicon String
   | EditAside String
@@ -162,7 +170,7 @@ viewSite site main_hostname =
     ]
 
 viewSiteData : SiteData -> Html SiteDataMsg
-viewSiteData {name, description, favicon, aside, footer, includes, nav} =
+viewSiteData {name, description, header, favicon, aside, footer, includes, nav} =
   div [ id "site-data" ]
     [ label []
       [ text "Title: "
@@ -174,6 +182,10 @@ viewSiteData {name, description, favicon, aside, footer, includes, nav} =
         [ placeholder "(this field accepts Markdown)"
         , onInput EditDescription
         ] [ text description ]
+      ]
+    , label []
+      [ text "Header image: "
+      , input [ value header, onInput EditHeader ] []
       ]
     , label []
       [ text "Favicon: "
@@ -195,7 +207,7 @@ viewSiteData {name, description, favicon, aside, footer, includes, nav} =
                 ] []
               , text ": "
               , input [ placeholder "Link URL"
-                , value txt
+                , value url
                 , onInput (\v-> EditNavItem i {txt=txt, url=v})
                 ] []
               , button [ onClick (RemoveNavItem i) ] [ text "×" ]

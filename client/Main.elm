@@ -53,7 +53,7 @@ update msg model =
           if Just nextmessage == lastmessage then
             model
           else case nextmessage of
-            SiteMessage site -> { appendmessage | site = Just site }
+            SiteMessage site -> { appendmessage | site = Just site, source = Nothing }
             SitesMessage sites -> { appendmessage | sites = sites }
             LoginSuccessMessage user ->
               { appendmessage | user = Just user }
@@ -116,6 +116,7 @@ update msg model =
             data = site.data
             newdata = case sdmsg of
               EditName v -> { data | name = v }
+              EditHeader v -> { data | header = v }
               EditDescription v -> { data | description = v }
               EditFavicon v -> { data | favicon = v }
               EditAside v -> { data | aside = v }

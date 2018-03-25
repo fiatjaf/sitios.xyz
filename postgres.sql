@@ -4,6 +4,7 @@ CREATE TABLE sites (
   domain text UNIQUE,
   data jsonb NOT NULL DEFAULT '{
     "favicon": "https://lorempixel.com/56/56/",
+    "header": "",
     "name": "",
     "description": "",
     "aside": "",
