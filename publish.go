@@ -80,8 +80,12 @@ func publish(site Site, conn *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
+	log.Debug().Msg("site generated successfully.")
+	conn.WriteMessage(websocket.TextMessage, []byte("Site generated successfully."))
 
 	// send files to s3
+	conn.WriteMessage(websocket.TextMessage, []byte("Now publishing..."))
+	log.Debug().Msg("uploading to s3...")
 	err = ensureBucket(site.Domain)
 	if err != nil {
 		return err
@@ -93,6 +97,7 @@ func publish(site Site, conn *websocket.Conn) error {
 	}
 
 	if strings.HasSuffix(site.Domain, mainHostname) {
+		log.Debug().Msg("setting dns record...")
 		// make https work by explicit adding a CNAME to cloudflare
 		err = setupSubdomainDNS(
 			strings.TrimSuffix(site.Domain, "."+mainHostname),

@@ -121,6 +121,7 @@ update msg model =
               EditFavicon v -> { data | favicon = v }
               EditAside v -> { data | aside = v }
               EditFooter v -> { data | footer = v }
+              EditJustHTML v -> { data | justhtml = v }
               AddInclude -> { data | includes = data.includes |> push "" }
               EditInclude i v -> { data | includes = data.includes |> set i v }
               RemoveInclude i ->

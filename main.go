@@ -68,6 +68,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 			break
 		}
 		sm := string(bm)
+
 		m := strings.SplitN(sm, " ", 2)
 
 		log.Debug().
@@ -77,7 +78,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 
 		if user == "" && m[0] != "login" {
 			log.Warn().Msg("not logged. waiting for login message.")
-			continue
+			return
 		}
 
 		switch m[0] {
@@ -91,7 +92,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 					Str("token", m[1]).
 					Msg("failed to verify auth token")
 				sendMsg("notice error=" + err.Error())
-				continue
+				return
 			}
 			log.Debug().Str("user", user).Msg("successful login")
 			sendMsg = func(sm string) {
@@ -111,239 +112,253 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 
 			sendMsg("notice login-success=" + user)
 			break
-		case "list-sites":
-			// fetch existing sites for this user
-			sites, err := listSites(pg, user)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Msg("couldn't fetch sites for user")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-			sitesstr := make([]string, len(sites))
-			for i, s := range sites {
-				sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Domain
-			}
-			sendMsg("sites " + strings.Join(sitesstr, ","))
-			break
-		case "create-site":
-			domain := m[1]
-			id, err := createSite(pg, user, domain)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Str("domain", domain).
-					Msg("couldn't create site")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-			sendMsg("notice create-site-success=" + strconv.Itoa(id))
-			break
-		case "update-site-data":
-			spl := strings.SplitN(m[1], " ", 2)
-			siteId, err := strconv.Atoi(spl[0])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
-				continue
-			}
+		default:
+			go respond(pg, m, conn, user, sendMsg)
+		}
 
-			sitedata := []byte(spl[1])
-			site, err := updateSiteData(pg, user, siteId, sitedata)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", siteId).
-					Msg("couldn't update site data")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
+	}
+}
 
-			sendSite(sendMsg, site)
-			break
-		case "delete-site":
-			id, err := strconv.Atoi(m[1])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-				continue
-			}
+func respond(
+	pg *sqlx.DB,
+	m []string,
+	conn *websocket.Conn,
+	user string,
+	sendMsg func(string),
+) {
+	switch m[0] {
+	case "list-sites":
+		// fetch existing sites for this user
+		sites, err := listSites(pg, user)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Msg("couldn't fetch sites for user")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+		sitesstr := make([]string, len(sites))
+		for i, s := range sites {
+			sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Domain
+		}
+		sendMsg("sites " + strings.Join(sitesstr, ","))
+		break
+	case "create-site":
+		domain := m[1]
+		id, err := createSite(pg, user, domain)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Str("domain", domain).
+				Msg("couldn't create site")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+		sendMsg("notice create-site-success=" + strconv.Itoa(id))
+		break
+	case "update-site-data":
+		spl := strings.SplitN(m[1], " ", 2)
+		siteId, err := strconv.Atoi(spl[0])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
+			return
+		}
 
-			site, err := fetchSite(pg, user, id)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", id).
-					Msg("couldn't fetch site")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
+		sitedata := []byte(spl[1])
+		site, err := updateSiteData(pg, user, siteId, sitedata)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", siteId).
+				Msg("couldn't update site data")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
 
-			err = removeBucket(site.Domain)
+		sendSite(sendMsg, site)
+		break
+	case "delete-site":
+		id, err := strconv.Atoi(m[1])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+			return
+		}
+
+		site, err := fetchSite(pg, user, id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", id).
+				Msg("couldn't fetch site")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		err = removeBucket(site.Domain)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("domain", site.Domain).
+				Msg("couldn't delete bucket on delete-site")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		if strings.HasSuffix(site.Domain, mainHostname) {
+			err = removeSubdomainDNS(site.Domain)
 			if err != nil {
 				log.Error().
 					Err(err).
 					Str("domain", site.Domain).
-					Msg("couldn't delete bucket on delete-site")
+					Msg("couldn't remove dns record")
 				sendMsg("notice error=" + err.Error())
-				continue
+				return
 			}
-
-			if strings.HasSuffix(site.Domain, mainHostname) {
-				err = removeSubdomainDNS(site.Domain)
-				if err != nil {
-					log.Error().
-						Err(err).
-						Str("domain", site.Domain).
-						Msg("couldn't remove dns record")
-					sendMsg("notice error=" + err.Error())
-					continue
-				}
-			}
-
-			err = deleteSite(pg, user, id)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", site.Id).
-					Msg("couldn't delete site from db")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendMsg("notice delete-success=" + site.Domain)
-			break
-		case "enter-site":
-			id, err := strconv.Atoi(m[1])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-				continue
-			}
-			site, err := fetchSite(pg, user, id)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", id).
-					Msg("couldn't fetch site")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendSite(sendMsg, site)
-			break
-		case "add-source":
-			siteId, err := strconv.Atoi(m[1])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-				continue
-			}
-
-			site, err := addSource(pg, user, siteId)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", siteId).
-					Msg("couldn't add source")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendSite(sendMsg, site)
-			break
-		case "update-source":
-			spl := strings.SplitN(m[1], " ", 2)
-			sourceId, err := strconv.Atoi(spl[0])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
-				continue
-			}
-			source := Source{
-				Id: sourceId,
-			}
-			err = json.Unmarshal([]byte(spl[1]), &source)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Int("source", source.Id).
-					Msg("couldn't parse source json")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			site, err := updateSource(pg, user, source)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("source", source.Id).
-					Msg("couldn't update source")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendSite(sendMsg, site)
-			break
-		case "remove-source":
-			sourceId, err := strconv.Atoi(m[1])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-				continue
-			}
-
-			site, err := removeSource(pg, user, sourceId)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("source", sourceId).
-					Msg("couldn't remove source")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendSite(sendMsg, site)
-			break
-		case "publish":
-			id, err := strconv.Atoi(m[1])
-			if err != nil {
-				sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-				continue
-			}
-
-			site, err := fetchSite(pg, user, id)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("user", user).
-					Int("site", id).
-					Msg("couldn't fetch site")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			err = publish(site, conn)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Int("site", site.Id).
-					Msg("error publishing")
-				sendMsg("notice error=" + err.Error())
-				continue
-			}
-
-			sendMsg("notice publish-success=" + site.Domain)
-			break
-		default:
-			log.Warn().
-				Str("message", m[0]).
-				Msg("invalid message kind")
 		}
+
+		err = deleteSite(pg, user, id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't delete site from db")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendMsg("notice delete-success=" + site.Domain)
+		break
+	case "enter-site":
+		id, err := strconv.Atoi(m[1])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+			return
+		}
+		site, err := fetchSite(pg, user, id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", id).
+				Msg("couldn't fetch site")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendSite(sendMsg, site)
+		break
+	case "add-source":
+		siteId, err := strconv.Atoi(m[1])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+			return
+		}
+
+		site, err := addSource(pg, user, siteId)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", siteId).
+				Msg("couldn't add source")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendSite(sendMsg, site)
+		break
+	case "update-source":
+		spl := strings.SplitN(m[1], " ", 2)
+		sourceId, err := strconv.Atoi(spl[0])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
+			return
+		}
+		source := Source{
+			Id: sourceId,
+		}
+		err = json.Unmarshal([]byte(spl[1]), &source)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Int("source", source.Id).
+				Msg("couldn't parse source json")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		site, err := updateSource(pg, user, source)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("source", source.Id).
+				Msg("couldn't update source")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendSite(sendMsg, site)
+		break
+	case "remove-source":
+		sourceId, err := strconv.Atoi(m[1])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+			return
+		}
+
+		site, err := removeSource(pg, user, sourceId)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("source", sourceId).
+				Msg("couldn't remove source")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendSite(sendMsg, site)
+		break
+	case "publish":
+		id, err := strconv.Atoi(m[1])
+		if err != nil {
+			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
+			return
+		}
+
+		site, err := fetchSite(pg, user, id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", id).
+				Msg("couldn't fetch site")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		err = publish(site, conn)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Int("site", site.Id).
+				Msg("error publishing")
+			sendMsg("notice error=" + err.Error())
+			return
+		}
+
+		sendMsg("notice publish-success=" + site.Domain)
+		break
+	default:
+		log.Warn().
+			Str("message", m[0]).
+			Msg("invalid message kind")
 	}
 }
 

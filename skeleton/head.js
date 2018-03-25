@@ -10,8 +10,13 @@ module.exports = props =>
       {name: 'viewport', content: 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=yes'}
     ],
     title: props.global.name,
-    link: props.global.includes.filter(include => include.slice(-4) === '.css')
+    link: props.global.includes.filter(isCSS)
       .map(href => ({href, rel: 'stylesheet'}))
       .concat([{href: props.global.favicon, rel: 'shortcut icon'}]),
     script: []
   })
+
+function isCSS (url) {
+  return url.split('?')[0]
+    .slice(-4) === '.css'
+}

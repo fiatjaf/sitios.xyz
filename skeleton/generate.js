@@ -34,6 +34,8 @@ parallel(
       '**/*.*(jpeg|jpg|png|svg|txt)'
     ])
 
-    end()
+    if (!{{ json .Globals.justhtml }}) {
+      end()
+    }
   }
 )

@@ -11,6 +11,7 @@ html {
 
 a {
   color: #686875;
+  cursor: pointer;
 }
 
 h1 {
@@ -34,7 +35,7 @@ button, input, select {
 }
 
 body > header {
-  width: 900px;
+  width: 1080;
   margin: 10px auto;
   text-align: center;
 }
@@ -86,8 +87,8 @@ header {
     #site header {
       text-align: center;
     }
-    #site a {
-      cursor: pointer;
+    #site h1 {
+      word-wrap: break-word;
     }
     #site ul {
       margin: 6px 0;
@@ -102,14 +103,19 @@ header {
         justify-content: space-between;
         margin: 4px 0;
         flex-wrap: wrap;
+        align-items: center;
       }
         #site-data input,
         #site-data textarea {
-          width: 290px;
-          min-width: 290px;
-          max-width: 290px;
+          flex-grow: 2;
+          margin: 0 4px;
         }
         #site-data textarea { min-height: 80px; }
+        #site-data img {
+          height: 1.8em;
+          flex-shrink: 2;
+          margin: 0 4px;
+        }
       #site-data .label {
         display: flex;
         justify-content: space-between;

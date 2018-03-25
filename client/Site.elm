@@ -8,6 +8,7 @@ import Array exposing (Array)
 import String exposing (endsWith)
 import Json.Decode as D
 import Json.Encode as E
+import Json.Decode.Pipeline as P
 
 import Source exposing (..)
 
@@ -29,9 +30,10 @@ type alias SiteData =
   , aside : String
   , footer : String
   , includes : Array String
+  , justhtml : Bool
   }
 
-emptySiteData = SiteData "" "" "" "" Array.empty "" "" Array.empty
+emptySiteData = SiteData "" "" "" "" Array.empty "" "" Array.empty False
 
 siteDecoder = D.map4 Site
   (D.field "id" D.int)
@@ -39,25 +41,21 @@ siteDecoder = D.map4 Site
   (D.field "sources" (D.list sourceDecoder))
   (D.field "data" siteDataDecoder)
 
-siteDataDecoder = D.map8 SiteData
-  (D.field "favicon" D.string)
-  (D.oneOf
-    [ D.field "header" D.string
-    , D.succeed ""
-    ]
-  )
-  (D.field "name" D.string)
-  (D.field "description" D.string)
-  (D.field "nav"
+siteDataDecoder = P.decode SiteData
+  |> P.optional "favicon" D.string ""
+  |> P.optional "header" D.string ""
+  |> P.optional "name" D.string ""
+  |> P.optional "description" D.string ""
+  |> P.optional "nav" 
     (D.array <|
       D.map2 (\url txt -> { url = url, txt = txt})
         (D.field "url" D.string)
         (D.field "txt" D.string)
-    )
-  )
-  (D.field "aside" D.string)
-  (D.field "footer" D.string)
-  (D.field "includes" (D.array D.string) )
+    ) (Array.fromList [{txt="Home", url="/"}])
+  |> P.optional "aside" D.string ""
+  |> P.optional "footer" D.string ""
+  |> P.optional "includes" (D.array D.string) (Array.fromList [""])
+  |> P.optional "justhtml" D.bool False
 
 siteDataEncoder data =
   E.object
@@ -79,6 +77,7 @@ siteDataEncoder data =
       )
     , ("aside", E.string data.aside)
     , ("footer", E.string data.footer)
+    , ("justhtml", E.bool data.justhtml)
     ]
 
 type Msg
@@ -98,6 +97,7 @@ type SiteDataMsg
   | EditFavicon String
   | EditAside String
   | EditFooter String
+  | EditJustHTML Bool
   | AddInclude
   | EditInclude Int String
   | RemoveInclude Int
@@ -170,11 +170,15 @@ viewSite site main_hostname =
     ]
 
 viewSiteData : SiteData -> Html SiteDataMsg
-viewSiteData {name, description, header, favicon, aside, footer, includes, nav} =
+viewSiteData {name, description, header, favicon, aside, footer, includes, nav, justhtml} =
   div [ id "site-data" ]
     [ label []
       [ text "Title: "
       , input [ value name, onInput EditName ] []
+      , p []
+        [ text "The site name, will show up on the window title of the browsers "
+        , text "and on top of all pages."
+        ]
       ]
     , label []
       [ text "Description: "
@@ -182,14 +186,28 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav} 
         [ placeholder "(this field accepts Markdown)"
         , onInput EditDescription
         ] [ text description ]
+      , p []
+        [ text "The default site description. May show up on Google results "
+        , text "and on external links to the site. Some providers may modify "
+        , text "or replace this."
+        ]
       ]
     , label []
       [ text "Header image: "
       , input [ value header, onInput EditHeader ] []
+      , if header /= "" then img [ src header ] [] else text ""
+      , p []
+        [ text "An URL to an image to show up on the top of all pages "
+        , text "of the site (some themes may decide to hide this)."
+        ]
       ]
     , label []
       [ text "Favicon: "
+      , if favicon /= "" then img [ src favicon ] [] else text ""
       , input [ value favicon, onInput EditFavicon ] []
+      , p []
+        [ text "An URL to an image to serve as the site icon."
+        ]
       ]
     , div []
       [ div [ class "label" ]
@@ -214,6 +232,10 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav} 
               ]
           )
         <| Array.toList nav
+      , p []
+        [ text "These are the labels and URLs that will show up on "
+        , text "the main navigation menu of the site."
+        ]
       ]
     , div []
       [ div [ class "label" ]
@@ -229,6 +251,11 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav} 
               ]
           )
         <| Array.toList includes
+      , p []
+        [ text ".js and .css files referenced here are going to be injected "
+        , text "on all generated pages. This providers a good way to "
+        , text "do theming, styling and customization of any kind."
+        ]
       ]
     , label []
       [ text "Aside text: "
@@ -236,6 +263,11 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav} 
         [ placeholder "(this field accepts Markdown)"
         , onInput EditAside
         ] [ text aside ]
+      , p []
+        [ text "This shows up on the bottom or side of the site, it's "
+        , text "a good place to put profile or contact information, a "
+        , text "quote or a collection of links."
+        ]
       ]
     , label []
       [ text "Footer text: "
@@ -243,6 +275,21 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav} 
         [ placeholder "(this field accepts Markdown)"
         , onInput EditFooter
         ] [ text footer ]
+      , p []
+        [ text "This shows up in the bottom of the site."
+        ]
+      ]
+    , label []
+      [ text "Just HTML: "
+      , input
+        [ type_ "checkbox"
+        , checked justhtml
+        , onCheck EditJustHTML
+        ] []
+      , p []
+        [ text "Mark this if you don't want the no-reload browsing and "
+        , text "other React-powered JavaScript features in your rendered site."
+        ]
       ]
     , div [ class "submit" ]
       [ button [ onClick SaveSiteData ] [ text "Save" ]
