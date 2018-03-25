@@ -74,8 +74,8 @@ WHERE owner = $1 AND id = $2
 
 func addSource(pg *sqlx.DB, user string, siteId int) (site Site, err error) {
 	_, err = pg.Exec(`
-INSERT INTO sources (site, provider, reference, root)
-SELECT sites.id, '', '', '' FROM sites WHERE owner = $1 AND id = $2
+INSERT INTO sources (site, provider, root)
+SELECT sites.id, '', '' FROM sites WHERE owner = $1 AND id = $2
     `, user, siteId)
 	if err != nil {
 		return

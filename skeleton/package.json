@@ -1,10 +1,13 @@
 {
   "dependencies": {
     "markdown-it": "^8.4.1",
-    "react-hyperscript": "^3.2.0",
+    "react-hyperscript": "^3.2.0"
+  },
+  "devDependencies": {
     "run-parallel": "^1.1.8",
     "sitio": "file:../../../../../../sitio",
     "sitio-evernote": "file:../../../../../../sitio/plugins/evernote",
+    "sitio-dropbox": "file:../../../../../../sitio/plugins/dropbox",
     "sitio-trello": "file:../../../../../../sitio/plugins/trello",
     "sitio-url": "file:../../../../../../sitio/plugins/url"
   }

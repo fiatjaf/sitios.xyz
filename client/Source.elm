@@ -6,6 +6,7 @@ import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue, onChec
 import Dict exposing (Dict, get)
 import Tuple exposing (first, second)
 import List exposing (head)
+import String exposing (toInt)
 import Json.Decode as D
 import Json.Encode as E
 import Maybe exposing (withDefault)
@@ -141,8 +142,9 @@ providers =
         ( get "apiKey" data
           |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
           |> maybeJoin
-          |> withDefault "ac61d8974aa86dd25f9597fa651a2ed8"
+          |> withDefault ""
         )
+      apiKeyDefault = "ac61d8974aa86dd25f9597fa651a2ed8"
     in div [ class "provider-data" ]
       [ p [ class "explanation" ]
         [ text "Given a Trello "
@@ -160,7 +162,12 @@ providers =
           [ onInput (E.string >> EditSourceDataValue "apiKey")
           , value apiKey
           ] []
-        , p [] [ text "If you don't know what is this, use the default value." ]
+        , p []
+          [ text "If you don't know what is this, "
+          , a [ onClick (EditSourceDataValue "apiKey" <| E.string apiKeyDefault) ]
+            [ text "click here" ]
+          , text " to use the default value."
+          ]
         ]
       , label []
         [ text "API token: "
@@ -201,7 +208,12 @@ providers =
       , label []
         [ text "posts per page: "
         , input
-          [ onInput (E.string >> EditSourceDataValue "postsPerPage")
+          [ onInput
+            ( toInt
+             >> Result.withDefault 7
+             >> E.int
+             >> EditSourceDataValue "postsPerPage"
+            )
           , value
             ( get "postsPerPage" data
               |> Maybe.map ( D.decodeValue D.int >> Result.toMaybe )
@@ -243,8 +255,9 @@ providers =
         ( get "apiKey" data
           |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
           |> maybeJoin
-          |> withDefault "ac61d8974aa86dd25f9597fa651a2ed8"
+          |> withDefault ""
         )
+      apiKeyDefault = "ac61d8974aa86dd25f9597fa651a2ed8"
     in div [ class "provider-data" ]
       [ p [ class "explanation" ]
         [ text "Same behavior as "
@@ -259,7 +272,12 @@ providers =
           [ onInput (E.string >> EditSourceDataValue "apiKey")
           , value apiKey
           ] []
-        , p [] [ text "If you don't know what is this, use the default value." ]
+        , p []
+          [ text "If you don't know what is this, "
+          , a [ onClick (EditSourceDataValue "apiKey" <| E.string apiKeyDefault) ]
+            [ text "click here" ]
+          , text " to use the default value."
+          ]
         ]
       , label []
         [ text "API token: "
@@ -296,7 +314,12 @@ providers =
       , label []
         [ text "posts per page: "
         , input
-          [ onInput (E.string >> EditSourceDataValue "postsPerPage")
+          [ onInput
+            ( toInt
+             >> Result.withDefault 7
+             >> E.int
+             >> EditSourceDataValue "postsPerPage"
+            )
           , value
             ( get "postsPerPage" data
               |> Maybe.map ( D.decodeValue D.int >> Result.toMaybe )
@@ -354,6 +377,63 @@ providers =
             [ href "https://help.evernote.com/hc/en-us/articles/209005417-Share-notes"
             , target "_blank"
             ] [ text "Get a public link to a note" ]
+            , text ", then paste it here."
+          ]
+        ]
+      ]
+    )
+  , ( "dropbox:file", \data -> div [ class "provider-data" ]
+      [ p [ class "explanation" ]
+        [ text "Given a Dropbox"
+        , em [] [ text "shared file URL" ]
+        , text " to an HTML or Markdown file, this will render its contents "
+        , text " as an article."
+        ]
+      , label []
+        [ text "url:"
+        , input
+          [ onInput (E.string >> EditSourceDataValue "url")
+          , value
+            ( get "url" data
+              |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault ""
+            )
+          ] []
+        , p []
+          [ a
+            [ href "https://www.dropbox.com/help/files-folders/share-file-or-folder"
+            , target "_blank"
+            ] [ text "Get a read-only link to a Dropbox file" ]
+            , text ", then paste it here."
+          ]
+        ]
+      ]
+    )
+  , ( "dropbox:folder", \data -> div [ class "provider-data" ]
+      [ p [ class "explanation" ]
+        [ text "Given a Dropbox"
+        , em [] [ text "shared folder URL" ]
+        , text ", this will render the files inside it as a list of articles. "
+        , text "HTML and Markdown files will be rendered as normal articles, "
+        , text "other files will be links to the original file on Dropbox."
+        ]
+      , label []
+        [ text "url:"
+        , input
+          [ onInput (E.string >> EditSourceDataValue "url")
+          , value
+            ( get "url" data
+              |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault ""
+            )
+          ] []
+        , p []
+          [ a
+            [ href "https://www.dropbox.com/help/files-folders/share-file-or-folder"
+            , target "_blank"
+            ] [ text "Get a read-only link to a Dropbox folder" ]
             , text ", then paste it here."
           ]
         ]

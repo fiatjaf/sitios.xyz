@@ -7,7 +7,9 @@ const plugins = {
   'url:markdown': 'sitio-url',
   'trello:list': 'sitio-trello/list',
   'trello:board': 'sitio-trello/board',
-  'evernote:note': 'sitio-evernote/note'
+  'evernote:note': 'sitio-evernote/note',
+  'dropbox:file': 'sitio-dropbox/file',
+  'dropbox:folder': 'sitio-dropbox/folder'
 }
 
 init({{ json .Globals }})
@@ -16,7 +18,6 @@ let tasks = {{ json .Sources }}.map(({provider, root, data}) => function (done) 
   let pluginName = plugins[provider]
   if (!pluginName) return
 
-  data.ref = reference
   plug(pluginName, root, data, done)
 })
 
@@ -25,6 +26,7 @@ parallel(
   (err, _) => {
     if (err) {
       console.log('error running one of the sources', err)
+      process.exit(1)
       return
     }
 
