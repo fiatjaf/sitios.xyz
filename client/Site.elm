@@ -5,6 +5,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue, onCheck)
 import Dict exposing (Dict)
 import Array exposing (Array)
+import String exposing (endsWith)
 import Json.Decode as D
 import Json.Encode as E
 
@@ -12,7 +13,7 @@ import Source exposing (..)
 
 type alias Site =
   { id : Int
-  , subdomain : String
+  , domain : String
   , sources : List Source
   , data : SiteData
   }
@@ -33,7 +34,7 @@ emptySiteData = SiteData "" "" "" Array.empty "" "" Array.empty
 
 siteDecoder = D.map4 Site
   (D.field "id" D.int)
-  (D.field "subdomain" D.string)
+  (D.field "domain" D.string)
   (D.field "sources" (D.list sourceDecoder))
   (D.field "data" siteDataDecoder)
 
@@ -74,7 +75,7 @@ siteDataEncoder data =
     ]
 
 type Msg
-  = EditSubdomain String
+  = EditDomain String
   | FinishCreatingSite
   | SiteDataAction SiteDataMsg
   | Publish
@@ -98,24 +99,43 @@ type SiteDataMsg
   | SaveSiteData
 
 
-viewSite : Site -> Html Msg
-viewSite site =
+viewSite : Site -> String-> Html Msg
+viewSite site main_hostname =
   if site.id == 0 then -- creating site
-    Html.form [ onSubmit FinishCreatingSite ]
+    Html.form [ id "newsite", onSubmit FinishCreatingSite ]
       [ label []
-        [ text "Please enter a subdomain:"
-        , input [ onInput EditSubdomain, value site.subdomain ] []
+        [ text "Please enter a domain: "
+        , input [ onInput EditDomain, value site.domain ] []
+        , p []
+          [ text "If you don't have a domain, use a subdomain "
+          , text <| "of " ++ main_hostname ++ ", as the suggestion "
+          , text "shows."
+          ]
+        , p []
+          [ text "If you use your own domain instead of a "
+          , text <| "subdomain of " ++ main_hostname ++ ", "
+          , text "you'll have to setup a CNAME record to "
+          , text <| "alias." ++ main_hostname ++ " by yourself. "
+          , text "Otherwise we'll do it automatically for you."
+          ]
         ]
       , button [] [ text "Create" ]
       ]
   else div [] -- already created
     [ header []
       [ div []
-        [ a [ href <| "https://" ++ site.subdomain ++ ".sitios.xyz/", target "_blank" ]
+        [ a
+          [ href
+            <| if site.domain |> endsWith main_hostname then
+                "https://" ++ site.domain ++ "/"
+              else
+                "http://" ++ site.domain ++ "/"
+          , target "_blank"
+          ]
           [ text "Visit site"
           ]
         ]
-      , h1 [] [ text site.subdomain ]
+      , h1 [] [ text site.domain ]
       , div []
         [ button [ onClick Publish ] [ text "Publish site" ]
         ]

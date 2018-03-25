@@ -59,9 +59,9 @@ parseMessage m =
                   |> head
                   |> Maybe.andThen (toInt >> Result.toMaybe)
                   |> withDefault 0
-                subdomain = kv |> drop 1 |> head |> withDefault ""
+                domain = kv |> drop 1 |> head |> withDefault ""
               in
-                (id, subdomain)
+                (id, domain)
             )
           |> SitesMessage
       Just "site" ->
@@ -119,7 +119,7 @@ viewMessage message =
         [ text "Got list of sites: "
         , span []
           <| intersperse (text ", ")
-          <| List.map (\(_, subdomain) -> em [] [ text subdomain ])
+          <| List.map (\(_, domain) -> em [] [ text domain ])
           <| sites
         ]
     EnterSiteMessage id ->
@@ -128,20 +128,20 @@ viewMessage message =
         , em [] [ text <| toString id ]
         , text "."
         ]
-    SiteMessage {id, subdomain, sources} ->
+    SiteMessage {id, domain, sources} ->
       div []
         [ text "Got site "
         , em [] [ text <| toString id ]
         , text ", "
-        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+        , em [] [ text domain ]
         , text <| ", with " ++ (toString <| List.length sources) ++ " sources."
         ]
     InitCreateSiteMessage ->
-      div [] [ text "Waiting for a subdomain to identify the new site..." ]
-    EndCreateSiteMessage subdomain ->
+      div [] [ text "Waiting for a domain to identify the new site..." ]
+    EndCreateSiteMessage domain ->
       div []
-        [ text "Creating site with subdomain"
-        , em [] [ text subdomain ]
+        [ text "Creating site with domain "
+        , em [] [ text domain ]
         , text "."
         ]
     SaveSiteDataMessage ->
@@ -188,10 +188,10 @@ viewMessage message =
         , em [] [ text <| toString id ]
         , text "."
         ]
-    DeleteMessage subdomain ->
+    DeleteMessage domain ->
       div []
         [ text "Deleting "
-        , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+        , em [] [ text domain ]
         , text "."
         ]
     ErrorMessage err -> div [ class "error" ] [ text err ] 
@@ -205,16 +205,14 @@ viewMessage message =
       , em [] [ text <| toString id ]
       , text "."
       ]
-    PublishSuccessMessage subdomain -> div []
-      [ text "Publish successfully to "
-      , a [ href <| "https://" ++ subdomain ++ ".sitios.xyz/", target "_blank" ]
-        [ text <| "https://" ++ subdomain ++ ".sitios.xyz/"
-        ]
+    PublishSuccessMessage domain -> div []
+      [ text "Published successfully to "
+      , em [] [ text domain ]
       , text "."
       ]
-    DeleteSuccessMessage subdomain -> div []
+    DeleteSuccessMessage domain -> div []
       [ text "Deleted "
-      , em [] [ text <| "https://" ++ subdomain ++ ".sitios.xyz/" ]
+      , em [] [ text domain ]
       , text "."
       ]
     NotLoggedMessage ->

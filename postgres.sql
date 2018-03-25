@@ -1,7 +1,7 @@
 CREATE TABLE sites (
   id serial PRIMARY KEY,
   owner text,
-  subdomain text UNIQUE,
+  domain text UNIQUE,
   data jsonb NOT NULL DEFAULT '{
     "favicon": "https://lorempixel.com/56/56/",
     "name": "",

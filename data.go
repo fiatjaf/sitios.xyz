@@ -6,10 +6,10 @@ import (
 )
 
 type Site struct {
-	Id        int            `db:"id" json:"id"`
-	Subdomain string         `db:"subdomain" json:"subdomain"`
-	Data      types.JSONText `db:"data" json:"data"`
-	Sources   types.JSONText `db:"sources" json:"sources"`
+	Id      int            `db:"id" json:"id"`
+	Domain  string         `db:"domain" json:"domain"`
+	Data    types.JSONText `db:"data" json:"data"`
+	Sources types.JSONText `db:"sources" json:"sources"`
 }
 
 type Source struct {
@@ -21,19 +21,19 @@ type Source struct {
 
 func listSites(pg *sqlx.DB, user string) (sites []Site, err error) {
 	err = pg.Select(&sites, `
-SELECT id, subdomain
+SELECT id, domain
 FROM sites
 WHERE owner = $1
     `, user)
 	return
 }
 
-func createSite(pg *sqlx.DB, user, subdomain string) (id int, err error) {
+func createSite(pg *sqlx.DB, user, domain string) (id int, err error) {
 	err = pg.Get(&id, `
-INSERT INTO sites (owner, subdomain) VALUES ($1, $2)
-ON CONFLICT (subdomain) DO NOTHING
+INSERT INTO sites (owner, domain) VALUES ($1, $2)
+ON CONFLICT (domain) DO NOTHING
 RETURNING id
-    `, user, subdomain)
+    `, user, domain)
 	return
 }
 
@@ -49,7 +49,7 @@ DELETE FROM sites WHERE id = (SELECT id FROM tsite)
 func fetchSite(pg *sqlx.DB, user string, id int) (site Site, err error) {
 	err = pg.Get(&site, `
 SELECT 
-  id, subdomain, data,
+  id, domain, data,
   ( SELECT coalesce(json_agg(row_to_json(source)), '[]'::json)
     FROM (
       SELECT id, provider, root, data

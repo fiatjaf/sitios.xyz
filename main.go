@@ -18,6 +18,7 @@ import (
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Logger()
 var acd = accountd.NewClient()
 var serviceURL = os.Getenv("SERVICE_URL")
+var mainHostname = os.Getenv("MAIN_HOSTNAME")
 
 func main() {
 	pg, err := sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
@@ -123,18 +124,18 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 			}
 			sitesstr := make([]string, len(sites))
 			for i, s := range sites {
-				sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Subdomain
+				sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Domain
 			}
 			sendMsg("sites " + strings.Join(sitesstr, ","))
 			break
 		case "create-site":
-			subdomain := m[1]
-			id, err := createSite(pg, user, subdomain)
+			domain := m[1]
+			id, err := createSite(pg, user, domain)
 			if err != nil {
 				log.Error().
 					Err(err).
 					Str("user", user).
-					Str("subdomain", subdomain).
+					Str("domain", domain).
 					Msg("couldn't create site")
 				sendMsg("notice error=" + err.Error())
 				continue
@@ -181,24 +182,26 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 				continue
 			}
 
-			err = removeBucket(site.Subdomain + ".sitios.xyz")
+			err = removeBucket(site.Domain)
 			if err != nil {
 				log.Error().
 					Err(err).
-					Str("subdomain", site.Subdomain).
+					Str("domain", site.Domain).
 					Msg("couldn't delete bucket on delete-site")
 				sendMsg("notice error=" + err.Error())
 				continue
 			}
 
-			err = removeSubdomainDNS(site.Subdomain)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("subdomain", site.Subdomain).
-					Msg("couldn't remove dns record")
-				sendMsg("notice error=" + err.Error())
-				continue
+			if strings.HasSuffix(site.Domain, mainHostname) {
+				err = removeSubdomainDNS(site.Domain)
+				if err != nil {
+					log.Error().
+						Err(err).
+						Str("domain", site.Domain).
+						Msg("couldn't remove dns record")
+					sendMsg("notice error=" + err.Error())
+					continue
+				}
 			}
 
 			err = deleteSite(pg, user, id)
@@ -212,7 +215,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 				continue
 			}
 
-			sendMsg("notice delete-success=" + site.Subdomain)
+			sendMsg("notice delete-success=" + site.Domain)
 			break
 		case "enter-site":
 			id, err := strconv.Atoi(m[1])
@@ -334,7 +337,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 				continue
 			}
 
-			sendMsg("notice publish-success=" + site.Subdomain)
+			sendMsg("notice publish-success=" + site.Domain)
 			break
 		default:
 			log.Warn().

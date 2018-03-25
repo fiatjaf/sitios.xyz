@@ -4,6 +4,7 @@ import Html.Events exposing (onClick, onInput, onSubmit, on, targetValue)
 import Platform.Sub as Sub
 import List exposing (head, drop, singleton, filter, intersperse)
 import Array exposing (set, get, append, slice, push)
+import String exposing (endsWith, dropRight)
 import WebSocket exposing (listen, send)
 import Dict
 import Json.Encode as E
@@ -21,6 +22,7 @@ type alias Model =
   , source : Maybe Source
   , token : Maybe String
   , ws : String
+  , main_hostname : String
   }
 
 type Msg
@@ -29,6 +31,7 @@ type Msg
   | LoginWith String
   | EnterSite Int
   | StartCreatingSite
+  | GotRandomSubdomain String
   | SiteAction Site.Msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -80,22 +83,32 @@ update msg model =
           | log = InitCreateSiteMessage :: model.log
           , site = Just emptySite
         }
+      , generate_subdomain True
+      )
+    GotRandomSubdomain subd ->
+      ( case model.site of 
+          Nothing -> model
+          Just site ->
+            let nextsite =
+              if site.domain /= "" then site
+              else { site | domain = subd ++ "." ++ model.main_hostname }
+            in { model | site = Just nextsite }
       , Cmd.none
       )
     SiteAction msg -> case model.site of
       Nothing -> ( model, Cmd.none )
       Just site -> case msg of
-        EditSubdomain subdomain -> 
-          ( { model | site = Just { site | subdomain = subdomain } }
+        EditDomain domain -> 
+          ( { model | site = Just { site | domain = domain } }
           , Cmd.none
           )
         FinishCreatingSite -> 
           if site.id == 0 then
             ( { model
                 | site = Nothing
-                , log = EndCreateSiteMessage site.subdomain :: model.log
+                , log = EndCreateSiteMessage site.domain :: model.log
               }
-            , send model.ws ("create-site " ++ site.subdomain)
+            , send model.ws ("create-site " ++ site.domain )
             )
           else ( model , Cmd.none )
         SiteDataAction sdmsg ->
@@ -144,7 +157,7 @@ update msg model =
           , send model.ws ("publish " ++ toString site.id)
           )
         Delete ->
-          ( { model | log = model.log |> (::) (DeleteMessage site.subdomain) }
+          ( { model | log = model.log |> (::) (DeleteMessage site.domain) }
           , send model.ws ("delete-site " ++ toString site.id)
           )
         EnterSource source ->
@@ -205,6 +218,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
   Sub.batch
     [ listen model.ws NewMessage
+    , generated_subdomain GotRandomSubdomain
     ]
 
 view : Model -> Html Msg
@@ -231,15 +245,22 @@ view model =
               <| (::) (button [ onClick StartCreatingSite ] [ text "Create a new site" ])
               <| List.reverse
               <| List.map
-                ( \(id, subdomain) ->
-                  button [ onClick (EnterSite id) ] [ text subdomain ]
+                ( \(id, domain) ->
+                  button [ onClick (EnterSite id) ]
+                    [ text
+                        ( if domain |> endsWith model.main_hostname then
+                            domain |> dropRight (1 + String.length model.main_hostname)
+                           else
+                            domain
+                        )
+                    ]
                 )
               <| model.sites
           , Html.map SiteAction
             ( div [ id "site" ]
               [ case model.site of
                 Nothing -> text ""
-                Just site -> viewSite site
+                Just site -> viewSite site model.main_hostname
               ]
             )
           , Html.map SiteAction
@@ -266,10 +287,11 @@ main =
 type alias Flags =
   { token : Maybe String
   , ws : String
+  , main_hostname : String
   }
 
 init : Flags -> (Model, Cmd Msg)
-init {token, ws} =
+init {token, ws, main_hostname} =
   ( { log =
         case token of
           Just t -> [ LoginMessage t ]
@@ -280,6 +302,7 @@ init {token, ws} =
     , source = Nothing
     , ws = ws
     , token = token
+    , main_hostname = main_hostname
     }
   , Cmd.batch
     [ case token of

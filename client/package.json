@@ -2,6 +2,7 @@
   "dependencies": {
     "browserify": "^16.1.1",
     "browserify-incremental": "^3.1.1",
-    "dropbox": "^4.0.1"
+    "envify": "^4.1.0",
+    "haikunator-porreta": "^1.0.0"
   }
 }

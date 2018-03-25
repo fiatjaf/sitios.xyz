@@ -263,7 +263,7 @@ providers =
         [ text "Same behavior as "
         , a [ href "https://websitesfortrello.com/", target "_blank" ]
           [ text "Websites for Trello" ]
-        , text ", but embedded in a subpath of your choice."
+        , text ", but embedded in a subpath of your choice. "
         , text "To mimic the behavior exactly, just set the root path to /." 
         ]
       , label []
@@ -384,7 +384,7 @@ providers =
     )
   , ( "dropbox:file", \data -> div [ class "provider-data" ]
       [ p [ class "explanation" ]
-        [ text "Given a Dropbox"
+        [ text "Given a Dropbox "
         , em [] [ text "shared file URL" ]
         , text " to an HTML or Markdown file, this will render its contents "
         , text " as an article."
@@ -412,7 +412,7 @@ providers =
     )
   , ( "dropbox:folder", \data -> div [ class "provider-data" ]
       [ p [ class "explanation" ]
-        [ text "Given a Dropbox"
+        [ text "Given a Dropbox "
         , em [] [ text "shared folder URL" ]
         , text ", this will render the files inside it as a list of articles. "
         , text "HTML and Markdown files will be rendered as normal articles, "

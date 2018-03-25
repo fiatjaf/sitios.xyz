@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/gorilla/websocket"
@@ -34,10 +35,10 @@ func publish(site Site, conn *websocket.Conn) error {
 	if err != nil {
 		return err
 	}
-	globals["rootURL"] = "https://" + site.Subdomain + ".sitios.xyz"
+	globals["rootURL"] = "https://" + site.Domain
 
 	// generate the generate.js file to be passed to sitio
-	log.Debug().Str("subdomain", site.Subdomain).Msg("generating generate.js")
+	log.Debug().Str("domain", site.Domain).Msg("generating generate.js")
 	ctx := GenerateContext{
 		Globals: globals,
 		Sources: sources,
@@ -81,20 +82,24 @@ func publish(site Site, conn *websocket.Conn) error {
 	}
 
 	// send files to s3
-	err = ensureBucket(site.Subdomain + ".sitios.xyz")
+	err = ensureBucket(site.Domain)
 	if err != nil {
 		return err
 	}
 
-	err = uploadFilesToBucket(site.Subdomain+".sitios.xyz", filepath.Join(dirname, "_site"))
+	err = uploadFilesToBucket(site.Domain, filepath.Join(dirname, "_site"))
 	if err != nil {
 		return err
 	}
 
-	// make https work by explicit adding a CNAME to cloudflare
-	err = setupSubdomainDNS(site.Subdomain)
-	if err != nil {
-		return err
+	if strings.HasSuffix(site.Domain, mainHostname) {
+		// make https work by explicit adding a CNAME to cloudflare
+		err = setupSubdomainDNS(
+			strings.TrimSuffix(site.Domain, "."+mainHostname),
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

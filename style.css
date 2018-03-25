@@ -70,6 +70,16 @@ header {
     #list button {
       margin: 2px 0;
     }
+  #newsite {}
+    #newsite label {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+      #newsite input {
+        margin-left: 4px;
+        flex-grow: 2;
+      }
   #site {
     min-width: 300px;
   }
@@ -154,7 +164,7 @@ header {
 
 #log {
   height: auto;
-  min-height: 300px;
+  min-height: 600px;
   color: white;
   background: #333;
   margin: auto;
