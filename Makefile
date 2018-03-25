@@ -2,7 +2,8 @@ all: elm.js bundle.js sitios
 client: elm.js bundle.js
 
 bundle.js: client/app.js
-	godotenv -f .env npm run build-js
+	cd client && \
+      godotenv -f ../.env ./node_modules/.bin/browserifyinc -t envify -vd app.js -o ../bundle.js
 
 elm.js: client/*.elm
 	npm run build-elm
