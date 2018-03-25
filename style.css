@@ -160,10 +160,6 @@ header {
   margin: auto;
   padding: 12px;
 }
-  #log > li {
-    margin: 6px 0;
-    list-style: none;
-  }
 
 .notice.error:before {
   content: '.';

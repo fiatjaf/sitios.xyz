@@ -219,4 +219,5 @@ viewMessage message =
       ]
     NotLoggedMessage ->
       div [] [ text "You were disconnected." ]
-    UnknownMessage m -> li [ class "unknown" ] [ text m ]
+    UnknownMessage m ->
+      div [ class "unknown" ] [ text m ]

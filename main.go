@@ -324,7 +324,7 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 				continue
 			}
 
-			err = publish(site)
+			err = publish(site, conn)
 			if err != nil {
 				log.Error().
 					Err(err).

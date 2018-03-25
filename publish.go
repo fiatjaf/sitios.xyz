@@ -2,12 +2,13 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"text/template"
+
+	"github.com/gorilla/websocket"
 )
 
 type GenerateContext struct {
@@ -15,7 +16,7 @@ type GenerateContext struct {
 	Sources []Source
 }
 
-func publish(site Site) error {
+func publish(site Site, conn *websocket.Conn) error {
 	dirname, err := ioutil.TempDir("", "sitios")
 	if err != nil {
 		return err
@@ -64,7 +65,7 @@ func publish(site Site) error {
 	}
 
 	// run the generate.js file
-	log.Debug().Msg("generating site")
+	log.Debug().Msg("generating site.")
 	cmd := exec.Command("node_modules/.bin/sitio",
 		filepath.Join(dirname, "generate.js"),
 		"--body=body.js",
@@ -72,9 +73,9 @@ func publish(site Site) error {
 		"--target-dir="+filepath.Join(dirname, "_site"),
 	)
 	cmd.Dir = "skeleton"
-
-	out, err := cmd.CombinedOutput()
-	fmt.Print(string(out))
+	cmd.Stdout = logproxy{conn}
+	cmd.Stderr = logproxy{conn}
+	err = cmd.Run()
 	if err != nil {
 		return err
 	}
@@ -97,4 +98,14 @@ func publish(site Site) error {
 	}
 
 	return nil
+}
+
+type logproxy struct {
+	conn *websocket.Conn
+}
+
+func (l logproxy) Write(p []byte) (n int, err error) {
+	l.conn.WriteMessage(websocket.TextMessage, p)
+	// fmt.Print(string(p))
+	return len(p), nil
 }
