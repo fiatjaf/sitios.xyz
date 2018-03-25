@@ -109,7 +109,8 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 			objectname, _ := filepath.Rel(dirname, filename)
 			_, err = ms3.FPutObject(bucketName, objectname, filename,
 				minio.PutObjectOptions{
-					ContentType: mimetype(filename),
+					ContentType:  mimetype(filename),
+					StorageClass: "REDUCED_REDUNDANCY",
 				})
 			if err != nil {
 				return err
