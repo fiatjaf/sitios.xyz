@@ -23,7 +23,7 @@ var ms3, _ = minio.New(
 	true,
 )
 
-func ensureEmptyBucket(bucketName string) error {
+func ensureBucket(bucketName string) error {
 	exists, err := ms3.BucketExists(bucketName)
 	if err != nil {
 		return err
@@ -46,7 +46,6 @@ func ensureEmptyBucket(bucketName string) error {
 		return err
 	}
 
-	emptyBucket(bucketName)
 	return nil
 }
 
@@ -84,9 +83,8 @@ func emptyBucket(bucketName string) {
 			objectsCh <- object.Key
 		}
 	}()
-	errorCh := ms3.RemoveObjects(bucketName, objectsCh)
 
-	// print errors received from RemoveObjects API
+	errorCh := ms3.RemoveObjects(bucketName, objectsCh)
 	for e := range errorCh {
 		log.Warn().
 			Err(e.Err).
@@ -97,7 +95,8 @@ func emptyBucket(bucketName string) {
 }
 
 func uploadFilesToBucket(bucketName, dirname string) error {
-	return filepath.Walk(
+	uploaded := make(map[string]bool)
+	err := filepath.Walk(
 		dirname, func(filename string, info os.FileInfo, err error) error {
 
 			if err != nil {
@@ -113,11 +112,45 @@ func uploadFilesToBucket(bucketName, dirname string) error {
 					ContentType: mimetype(filename),
 				})
 			if err != nil {
-				return nil
+				return err
 			}
 
+			uploaded[objectname] = true
 			return nil
 		})
+	if err != nil {
+		return err
+	}
+
+	// remove all objects which were not uploaded just now
+	objectsCh := make(chan string)
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(objectsCh)
+		for object := range ms3.ListObjects(bucketName, "", true, doneCh) {
+			if object.Err != nil {
+				log.Error().
+					Err(object.Err).
+					Str("obj", object.Key).
+					Msg("error listing object")
+			}
+
+			if _, wasUploaded := uploaded[object.Key]; !wasUploaded {
+				objectsCh <- object.Key
+			}
+		}
+	}()
+
+	removeErrCh := ms3.RemoveObjects(bucketName, objectsCh)
+	for e := range removeErrCh {
+		log.Warn().
+			Err(e.Err).
+			Str("obj", e.ObjectName).
+			Str("bucket", bucketName).
+			Msg("failed to remove object from bucket")
+	}
+
+	return nil
 }
 
 func mimetype(filename string) string {
@@ -149,6 +182,6 @@ func makeBucketAWebsite(bucketName string) error {
 		return err
 	}
 
-	log.Print(resp.StatusCode)
+	log.Debug().Int("status", resp.StatusCode).Msg("uploaded to s3")
 	return nil
 }

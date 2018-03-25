@@ -81,7 +81,7 @@ func publish(site Site, conn *websocket.Conn) error {
 	}
 
 	// send files to s3
-	err = ensureEmptyBucket(site.Subdomain + ".sitios.xyz")
+	err = ensureBucket(site.Subdomain + ".sitios.xyz")
 	if err != nil {
 		return err
 	}
