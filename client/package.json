@@ -3,6 +3,12 @@
     "browserify": "^16.1.1",
     "browserify-incremental": "^3.1.1",
     "envify": "^4.1.0",
-    "haikunator-porreta": "^1.0.0"
+    "haikunator-porreta": "^1.0.0",
+    "elm": "latest"
+  },
+  "scripts": {
+    "install": "npm run build-js && npm run build-elm",
+    "build-js": "browserifyinc -t envify -vd client/app.js -o bundle.js",
+    "build-elm": "cd client && elm make --yes Main.elm --output ../elm.js"
   }
 }
