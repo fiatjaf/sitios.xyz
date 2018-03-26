@@ -240,7 +240,9 @@ view model =
         div [ id "main" ]
           [ div [ id "list" ] <|
             if List.length model.sites == 0 then
-              [ text "You don't have any sites yet. " ]
+              [ div [] [ text "You don't have any sites yet." ]
+              , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
+              ]
             else
               (::) (text "Your sites: ")
               <| List.reverse
