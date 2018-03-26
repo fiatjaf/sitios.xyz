@@ -10,11 +10,27 @@
   <h1>sítios <img src=icon.png></h1>
 </header>
 
-<main>
-</main>
+<article>
+  <p><b>sítios.xyz</b> is a hosted static site generator based on <a href=https://github.com/fiatjaf/sitio target=_blank>sitio</a>. It is capable of building websites by fetching content from other services and arranging them in pages. It can be used to build any sort of blog or site.</p>
+  <p>It supports fetching content from <em>Trello</em>, <em>Dropbox</em>, <em>Evernote</em> and arbitrary URLs. You can use just one of these providers, or mix them all in your site.</p>
+  <h3>How it works</h3>
+  <p>Basically, you just have to point to an URL of the site, like <b>/posts</b>, for example, and assign a provider to it. The <em>trello:list</em> provider, for example, will fetch all cards on a Trello list and create a page for each of them under <b>/posts/:card-name</b> and finish with an index, optionally paginated, on <b>/posts</b> itself.</p>
+  <p>You can repeat this process for other content from other sources, or even just point the root URL, <b>/</b> to some provider and be done with it.</p>
+  <h3>Fast</h3>
+  <p>The generated websites are super fast, as they're served as HTML files directly, no server-rendering involved. Also, due to <a href=https://github.com/fiatjaf/sitio target=_blank>sitio</a> capabilities, they have instant navigation enabled by default, which uses JavaScript to fetch just the content of the pages, instead of performing a full reload.</p>
+  <h3>Customization</h3>
+  <p>Since the way pages are rendered -- their HTML structure -- is standardized by <a href=https://websitesfortrello.github.io/classless/ target=_blank>classless</a>, custom theming and styling is simple to do using just CSS and JavaScript, and there are some themes available already for you to choose.</p>
+  <p>If you want custom HTML or a provider for which we don't have support yet, that's easy to add. Please let's us know using the chat below!</p>
+  <h3>No lock-in</h3>
+  <p>The code that renders the sites is just a very minimal <b>sitio</b> script with the plugins you choose. These are all <a href="https://github.com/fiatjaf/sitio" target=_blank>open-source</a> and you can export your site and render it by yourself if you don't want to use <b>sítios.xyz</b> anymore.</p>
+</article>
+
+<main></main>
 
 <footer>
+  <p><a href="https://fiatjaf.alhur.es/" target=_blank>@fiatjaf</a> 2018;</p>
 </footer>
 
 <script src=elm.js></script>
 <script src=bundle.js></script>
+<script type="text/javascript"> window.$crisp=[];window.CRISP_WEBSITE_ID="093fbccd-53eb-489f-ae32-420ea347b68b";(function(){ d=document;s=d.createElement("script"); s.src="https://client.crisp.chat/l.js"; s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})(); </script>

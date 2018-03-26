@@ -13,6 +13,12 @@ if (token) {
   localStorage.setItem('token', token)
 }
 
+if (token || localStorage.getItem('token')) {
+  // we're logged in. remove landing page stuff.
+  document.body.removeChild(document.querySelector('article'))
+  document.body.removeChild(document.querySelector('footer'))
+}
+
 var app = Elm.Main.embed(document.querySelector('main'), {
   token: token || localStorage.getItem('token'),
   ws: location.protocol.replace('http', 'ws') + location.host + '/ws',

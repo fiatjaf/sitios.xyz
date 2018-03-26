@@ -40,12 +40,22 @@ body > header {
   text-align: center;
 }
 
+body > article,
+body > footer {
+  width: 700px;
+  margin: auto;
+  text-align: justify;
+}
+
 #login,
 #main {
   min-height: 400px;
   width: 900px;
   margin: 30px auto;
 }
+
+article + main #login { min-height: 200px; }
+article + main #log { display: none; }
 
 header {
   margin-top: 7px;
