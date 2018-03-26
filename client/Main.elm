@@ -29,6 +29,7 @@ type Msg
   = NewMessage String
   | LoginUsing String
   | LoginWith String
+  | Logout
   | EnterSite Int
   | StartCreatingSite
   | GotRandomSubdomain String
@@ -42,6 +43,10 @@ update msg model =
     LoginUsing provider -> 
       ( model
       , external <| "https://accountd.xyz/login/using/" ++ provider
+      )
+    Logout ->
+      ( { model | user = Nothing, sites = [], source = Nothing, token = Nothing }
+      , logout True
       )
     NewMessage m ->
       let
@@ -238,28 +243,38 @@ view model =
           ]
       Just username ->
         div [ id "main" ]
-          [ div [ id "list" ] <|
-            if List.length model.sites == 0 then
-              [ div [] [ text "You don't have any sites yet." ]
-              , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
+          [ div [ id "list" ] <| List.concat
+            [ if List.length model.sites == 0 then
+                [ div [] [ text "You don't have any sites yet." ]
+                , button [ onClick StartCreatingSite ] [ text "Create a new site" ]
+                ]
+              else
+                (::) (text "Your sites: ")
+                <| List.reverse
+                <| (::) (button [ onClick StartCreatingSite ] [ text "Create a new site" ])
+                <| List.reverse
+                <| List.map
+                  ( \(id, domain) ->
+                    button [ onClick (EnterSite id) ]
+                      [ text
+                          ( if domain |> endsWith model.main_hostname then
+                              domain |> dropRight (1 + String.length model.main_hostname)
+                             else
+                              domain
+                          )
+                      ]
+                  )
+                <| model.sites
+            , [ hr [] []
+              , p []
+                [ text "Logged in as "
+                , em [] [ text username ]
+                , text ". "
+                , a [ onClick Logout ] [ text "Logout" ]
+                , text "."
+                ]
               ]
-            else
-              (::) (text "Your sites: ")
-              <| List.reverse
-              <| (::) (button [ onClick StartCreatingSite ] [ text "Create a new site" ])
-              <| List.reverse
-              <| List.map
-                ( \(id, domain) ->
-                  button [ onClick (EnterSite id) ]
-                    [ text
-                        ( if domain |> endsWith model.main_hostname then
-                            domain |> dropRight (1 + String.length model.main_hostname)
-                           else
-                            domain
-                        )
-                    ]
-                )
-              <| model.sites
+            ]
           , Html.map SiteAction
             ( div [ id "site" ]
               [ case model.site of

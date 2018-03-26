@@ -29,6 +29,10 @@ app.ports.external.subscribe(url => {
   location.href = url + '?redirect_uri=' + location.href
 })
 
+app.ports.logout.subscribe(() => {
+  localStorage.removeItem('token')
+})
+
 app.ports.generate_subdomain.subscribe(() => {
   app.ports.generated_subdomain.send(haikunate())
 })
