@@ -9,6 +9,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/a8m/mark"
 	"github.com/gorilla/websocket"
 )
 
@@ -36,6 +37,9 @@ func publish(site Site, conn *websocket.Conn) error {
 		return err
 	}
 	globals["rootURL"] = "https://" + site.Domain
+	globals["description"] = mark.Render(globals["description"].(string))
+	globals["aside"] = mark.Render(globals["aside"].(string))
+	globals["footer"] = mark.Render(globals["footer"].(string))
 
 	// generate the generate.js file to be passed to sitio
 	log.Debug().Str("domain", site.Domain).Msg("generating generate.js")

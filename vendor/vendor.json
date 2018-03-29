@@ -1,10 +1,16 @@
 {
-    "heroku": {
-        "goVersion": "go1.10"
-    },
 	"comment": "",
+	"heroku": {
+		"goVersion": "go1.10"
+	},
 	"ignore": "test",
 	"package": [
+		{
+			"checksumSHA1": "qjTXEr7/Y/fOelPkbW3M8mOeK0Y=",
+			"path": "github.com/a8m/mark",
+			"revision": "44f2db6188458162890ca13980819247418d8e45",
+			"revisionTime": "2017-05-07T13:37:48Z"
+		},
 		{
 			"checksumSHA1": "DWj1s1Z6xKbC+2tBPTmrRLBdhvs=",
 			"path": "github.com/cloudflare/cloudflare-go",

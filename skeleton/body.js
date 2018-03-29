@@ -1,10 +1,4 @@
 const h = require('react-hyperscript')
-const md = require('markdown-it')({
-  html: true,
-  linkify: true,
-  breaks: true,
-  typographer: true
-})
 
 module.exports = props => {
   return [
@@ -15,9 +9,7 @@ module.exports = props => {
       ]),
       h('aside', {
         dangerouslySetInnerHTML: {
-          __html: props.global.description
-            ? md.render(props.global.description)
-            : ''
+          __html: props.global.description || ''
         }
       })
     ]),
@@ -31,12 +23,12 @@ module.exports = props => {
     h('main', {key: 'main'}, props.children),
     h('aside', {
       key: 'aside',
-      dangerouslySetInnerHTML: {__html: md.render(props.global.aside)}
+      dangerouslySetInnerHTML: {__html: props.global.aside}
     }),
     h('footer', {
       key: 'footer',
       role: 'contentinfo',
-      dangerouslySetInnerHTML: {__html: md.render(props.global.footer)}
+      dangerouslySetInnerHTML: {__html: props.global.footer}
     })
   ].concat(
     props.global.includes.filter(isJS)
