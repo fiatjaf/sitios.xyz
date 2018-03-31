@@ -37,9 +37,21 @@ func publish(site Site, conn *websocket.Conn) error {
 		return err
 	}
 	globals["rootURL"] = "https://" + site.Domain
-	globals["description"] = mark.Render(globals["description"].(string))
-	globals["aside"] = mark.Render(globals["aside"].(string))
-	globals["footer"] = mark.Render(globals["footer"].(string))
+	if desc, ok := globals["description"].(string); ok {
+		globals["description"] = mark.Render(desc)
+	} else {
+		globals["description"] = ""
+	}
+	if aside, ok := globals["aside"].(string); ok {
+		globals["aside"] = mark.Render(aside)
+	} else {
+		globals["aside"] = ""
+	}
+	if footer, ok := globals["footer"].(string); ok {
+		globals["footer"] = mark.Render(footer)
+	} else {
+		globals["footer"] = ""
+	}
 
 	// generate the generate.js file to be passed to sitio
 	log.Debug().Str("domain", site.Domain).Msg("generating generate.js")
