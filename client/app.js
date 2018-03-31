@@ -17,6 +17,8 @@ if (token || localStorage.getItem('token')) {
   // we're logged in. remove landing page stuff.
   document.body.removeChild(document.querySelector('article'))
   document.body.removeChild(document.querySelector('footer'))
+
+  window.tc && window.tc(1)
 }
 
 var app = Elm.Main.embed(document.querySelector('main'), {
