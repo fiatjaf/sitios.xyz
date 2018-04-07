@@ -253,8 +253,16 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         <| Array.toList includes
       , p []
         [ text ".js and .css files referenced here are going to be injected "
-        , text "on all generated pages. This providers a good way to "
-        , text "do theming, styling and customization of any kind."
+        , text "on all generated pages. This is where you include stuff for "
+        , text "styling and layout tweaks."
+        ]
+      , p []
+        [ text "Any CSS theme that adheres to the "
+        , a [ target "_blank", href "https://classless.alhur.es/" ] [ text "Classless" ]
+        , text " spec should work. Choose one and get its CSS "
+        , text "URL to include here on "
+        , a [ target "_blank", href "https://classless.alhur.es/themes/?theme=creative-portfolio" ] [ text "classless.alhur.es/themes" ]
+        , text "."
         ]
       ]
     , label []
