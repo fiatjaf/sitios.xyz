@@ -169,7 +169,7 @@ func makeBucketAWebsite(bucketName string) error {
     <Suffix>index.html</Suffix>
   </IndexDocument>
   <ErrorDocument>
-    <Key>error.html</Key>
+    <Key>error/index.html</Key>
   </ErrorDocument>
 </WebsiteConfiguration>
 `)

@@ -1,6 +1,5 @@
 const path = require('path')
-const {init, end, generatePage, plug, copyStatic} = require('sitio')
-const parallel = require('run-parallel')
+const {init, end, generatePage, plug, postprocess, copyStatic} = require('sitio')
 
 const plugins = {
   'url:html': 'sitio-url',
@@ -12,30 +11,40 @@ const plugins = {
   'dropbox:folder': 'sitio-dropbox/folder'
 }
 
-init({{ json .Globals }})
+async function main (globals, sources) {
+  await init(globals)
 
-let tasks = {{ json .Sources }}.map(({provider, root, data}) => function (done) {
-  let pluginName = plugins[provider]
-  if (!pluginName) return
+  for (let i = 0; i < sources.length; i++) {
+    let {provider, root, data} = sources[i]
 
-  plug(pluginName, root, data, done)
-})
-
-parallel(
-  tasks,
-  (err, _) => {
-    if (err) {
-      console.log('error running one of the sources', err)
+    let pluginName = plugins[provider]
+    if (!pluginName) return
+  
+    try {
+      await plug(pluginName, root, data)
+    } catch (err) {
+      console.log('error running source', pluginName, 'on', root, 'with', data, err)
       process.exit(1)
       return
     }
-
-    copyStatic([
-      '**/*.*(jpeg|jpg|png|svg|txt)'
-    ])
-
-    if (!{{ json .Globals.justhtml }}) {
-      end()
-    }
   }
-)
+
+  postprocess('sitio-error')
+
+  await copyStatic([
+    '**/*.*(jpeg|jpg|png|svg|txt)'
+  ])
+
+  if (!globals.justhtml) {
+    await end()
+  }
+}
+
+try {
+  main(
+    {{ json .Globals }},
+    {{ json .Sources }}
+  )
+} catch (err) {
+  console.log('error generating site', err)
+}
