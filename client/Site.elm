@@ -173,7 +173,7 @@ viewSiteData : SiteData -> Html SiteDataMsg
 viewSiteData {name, description, header, favicon, aside, footer, includes, nav, justhtml} =
   div [ id "site-data" ]
     [ label []
-      [ text "Title: "
+      [ b [] [ text "Title: " ]
       , input [ value name, onInput EditName ] []
       , p []
         [ text "The site name, will show up on the window title of the browsers "
@@ -181,7 +181,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Description: "
+      [ b [] [ text "Description: " ]
       , textarea
         [ placeholder "(this field accepts Markdown)"
         , onInput EditDescription
@@ -193,7 +193,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Header image: "
+      [ b [] [ text "Header image: " ]
       , input [ value header, onInput EditHeader ] []
       , if header /= "" then img [ src header ] [] else text ""
       , p []
@@ -202,7 +202,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Favicon: "
+      [ b [] [ text "Favicon: " ]
       , if favicon /= "" then img [ src favicon ] [] else text ""
       , input [ value favicon, onInput EditFavicon ] []
       , p []
@@ -211,7 +211,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
       ]
     , div []
       [ div [ class "label" ]
-        [ text "Navbar items: "
+        [ b [] [ text "Navbar items: " ]
         , button [ onClick AddNavItem ] [ text "+" ]
         ]
       , div [ class "subitems" ]
@@ -239,7 +239,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
       ]
     , div []
       [ div [ class "label" ]
-        [ text "Includes: "
+        [ b [] [ text "Includes: " ]
         , button [ onClick AddInclude ] [ text "+" ]
         ]
       , div [ class "subitems" ]
@@ -266,7 +266,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Aside text: "
+      [ b [] [ text "Aside text: " ]
       , textarea
         [ placeholder "(this field accepts Markdown)"
         , onInput EditAside
@@ -278,7 +278,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Footer text: "
+      [ b [] [ text "Footer text: " ]
       , textarea
         [ placeholder "(this field accepts Markdown)"
         , onInput EditFooter
@@ -288,7 +288,7 @@ viewSiteData {name, description, header, favicon, aside, footer, includes, nav, 
         ]
       ]
     , label []
-      [ text "Just HTML: "
+      [ b [] [ text "Just HTML: " ]
       , input
         [ type_ "checkbox"
         , checked justhtml

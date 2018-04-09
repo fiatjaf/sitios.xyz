@@ -82,7 +82,7 @@ providers =
         , text " raw URL, and have it rendered on the desired site path."
         ]
       , label []
-        [ text "url: "
+        [ b [] [ text "url: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "url")
           , value
@@ -95,7 +95,7 @@ providers =
         , p [] [ text "The URL of the HTML document that will be imported" ]
         ]
       , label []
-        [ text "full-page"
+        [ b [] [ text "full-page" ]
         , input
           [ type_ "checkbox"
           , onCheck  (E.bool >> EditSourceDataValue "full-page")
@@ -122,7 +122,7 @@ providers =
         , text " parameter."
         ]
       , label []
-        [ text "url: "
+        [ b [] [ text "url: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "url")
           , value
@@ -157,7 +157,7 @@ providers =
         , text ") each in its own sub-URL, and an index page on the root URL."
         ]
       , label []
-        [ text "API key: "
+        [ b [] [ text "API key: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "apiKey")
           , value apiKey
@@ -170,7 +170,7 @@ providers =
           ]
         ]
       , label []
-        [ text "API token: "
+        [ b [] [ text "API token: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "apiToken")
           , value
@@ -189,7 +189,7 @@ providers =
           ]
         ]
       , label []
-        [ text "id: "
+        [ b [] [ text "id: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "id")
           , value
@@ -206,7 +206,7 @@ providers =
           ]
         ]
       , label []
-        [ text "posts per page: "
+        [ b [] [ text "posts per page: " ]
         , input
           [ onInput
             ( toInt
@@ -231,7 +231,7 @@ providers =
           ]
         ]
       , label []
-        [ text "excerpts: "
+        [ b [] [ text "excerpts: " ]
         , input
           [ type_ "checkbox"
           , onCheck (E.bool >> EditSourceDataValue "excerpts")
@@ -267,7 +267,7 @@ providers =
         , text "To mimic the behavior exactly, just set the root path to /." 
         ]
       , label []
-        [ text "API key: "
+        [ b [] [ text "API key: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "apiKey")
           , value apiKey
@@ -280,7 +280,7 @@ providers =
           ]
         ]
       , label []
-        [ text "API token: "
+        [ b [] [ text "API token: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "apiToken")
           , value
@@ -299,7 +299,7 @@ providers =
           ]
         ]
       , label []
-        [ text "ref: "
+        [ b [] [ text "ref: " ]
         , input
           [ onInput (E.string >> EditSourceDataValue "ref")
           , value
@@ -312,7 +312,7 @@ providers =
         , p [] [ text "The URL or id or shortLink of the desired Trello board." ]
         ]
       , label []
-        [ text "posts per page: "
+        [ b [] [ text "posts per page: " ]
         , input
           [ onInput
             ( toInt
@@ -337,7 +337,7 @@ providers =
           ]
         ]
       , label []
-        [ text "excerpts: "
+        [ b [] [ text "excerpts: " ]
         , input
           [ type_ "checkbox"
           , onCheck (E.bool >> EditSourceDataValue "excerpts")
@@ -362,7 +362,7 @@ providers =
         , text ", this will render its contents on the desired path as an article."
         ]
       , label []
-        [ text "url:"
+        [ b [] [ text "url:" ]
         , input
           [ onInput (E.string >> EditSourceDataValue "url")
           , value
@@ -390,7 +390,7 @@ providers =
         , text " as an article."
         ]
       , label []
-        [ text "url:"
+        [ b [] [ text "url:" ]
         , input
           [ onInput (E.string >> EditSourceDataValue "url")
           , value
@@ -419,7 +419,7 @@ providers =
         , text "other files will be links to the original file on Dropbox."
         ]
       , label []
-        [ text "url:"
+        [ b [] [ text "url:" ]
         , input
           [ onInput (E.string >> EditSourceDataValue "url")
           , value
