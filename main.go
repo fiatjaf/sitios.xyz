@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/orcaman/concurrent-map"
 	"github.com/rs/zerolog"
 )
 
@@ -19,6 +19,7 @@ var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Logger()
 var acd = accountd.NewClient()
 var serviceURL = os.Getenv("SERVICE_URL")
 var mainHostname = os.Getenv("MAIN_HOSTNAME")
+var connections = cmap.New()
 
 func main() {
 	pg, err := sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
@@ -39,20 +40,308 @@ func main() {
 	})
 	http.HandleFunc("/trello-list-id", trelloListIdHandle)
 	http.Handle("/", http.FileServer(http.Dir("./")))
+	http.HandleFunc("/whoami", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+		json.NewEncoder(w).Encode(user)
+	})
+	http.HandleFunc("/list-sites", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		// fetch existing sites for this user
+		sites, err := listSites(pg, user)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Msg("couldn't fetch sites for user")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(sites)
+	})
+	http.HandleFunc("/create-site", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var data struct {
+			Domain string `json:"domain"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&data)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		id, err := createSite(pg, user, data.Domain)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Str("domain", data.Domain).
+				Msg("couldn't create site")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(id)
+	})
+	http.HandleFunc("/get-site", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var site Site
+		err := json.NewDecoder(r.Body).Decode(&site)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err = fetchSite(pg, user, site.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't fetch site")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		json.NewEncoder(w).Encode(site)
+	})
+	http.HandleFunc("/update-site", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var site Site
+		err := json.NewDecoder(r.Body).Decode(&site)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err = updateSiteData(pg, user, site.Id, site.Data)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't update site data")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		json.NewEncoder(w).Encode(site)
+	})
+	http.HandleFunc("/delete-site", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var site Site
+		err := json.NewDecoder(r.Body).Decode(&site)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err = fetchSite(pg, user, site.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't fetch site")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		err = removeBucket(site.Domain)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("domain", site.Domain).
+				Msg("couldn't delete bucket on delete-site")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		if strings.HasSuffix(site.Domain, mainHostname) {
+			err = removeSubdomainDNS(site.Domain)
+			if err != nil {
+				log.Error().
+					Err(err).
+					Str("domain", site.Domain).
+					Msg("couldn't remove dns record")
+				http.Error(w, err.Error(), 500)
+				return
+			}
+		}
+
+		err = deleteSite(pg, user, site.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't delete site from db")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		w.WriteHeader(200)
+	})
+	http.HandleFunc("/add-source", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var site Site
+		err := json.NewDecoder(r.Body).Decode(&site)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err = addSource(pg, user, site.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't add source")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(site)
+	})
+	http.HandleFunc("/update-source", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var source Source
+		err := json.NewDecoder(r.Body).Decode(&source)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err := updateSource(pg, user, source)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("source", source.Id).
+				Msg("couldn't update source")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(site)
+	})
+	http.HandleFunc("/delete-source", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var source Source
+		err := json.NewDecoder(r.Body).Decode(&source)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err := removeSource(pg, user, source.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("source", source.Id).
+				Msg("couldn't remove source")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		json.NewEncoder(w).Encode(site)
+	})
+	http.HandleFunc("/publish", func(w http.ResponseWriter, r *http.Request) {
+		user, ok := auth(r, w)
+		if !ok {
+			return
+		}
+
+		var site Site
+		err := json.NewDecoder(r.Body).Decode(&site)
+		if err != nil {
+			http.Error(w, err.Error(), 400)
+		}
+
+		site, err = fetchSite(pg, user, site.Id)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Int("site", site.Id).
+				Msg("couldn't fetch site")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+
+		var conn *websocket.Conn
+		iconn, ok := connections.Get(user)
+		if ok {
+			conn, ok = iconn.(*websocket.Conn)
+		}
+
+		if conn == nil {
+			log.Error().
+				Err(err).
+				Str("user", user).
+				Msg("need a valid websocket connection when publishing.")
+			http.Error(w, err.Error(), 403)
+			return
+		}
+
+		w.WriteHeader(200)
+
+		err = publish(site, conn)
+		if err != nil {
+			log.Error().
+				Err(err).
+				Int("site", site.Id).
+				Msg("error publishing")
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	})
 
 	port := os.Getenv("PORT")
 	log.Print("listening on port " + port)
 	panic(http.ListenAndServe(":"+port, nil))
 }
 
+func auth(r *http.Request, w http.ResponseWriter) (user string, ok bool) {
+	token := strings.Split(r.Header.Get("Authorization"), " ")[1]
+	user, err := acd.VerifyAuth(token)
+	if err != nil {
+		http.Error(w, "wrong authorization token: "+token, 401)
+		return "", false
+	}
+	return user, true
+}
+
 func handle(pg *sqlx.DB, conn *websocket.Conn) {
 	defer conn.Close()
 	var user string
 	var userch = make(chan string, 1)
-	var sendMsg func(string)
 
 	go notLoggedNotify(conn, userch)
-
 	for {
 		typ, bm, err := conn.ReadMessage()
 		if err != nil || typ != websocket.TextMessage {
@@ -86,288 +375,14 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 					Err(err).
 					Str("token", m[1]).
 					Msg("failed to verify auth token")
-				sendMsg("notice error=" + err.Error())
 				return
 			}
 			log.Debug().Str("user", user).Msg("successful login")
-			sendMsg = func(sm string) {
-				log.Debug().
-					Str("m", sm).
-					Str("user", user).
-					Msg("sending message")
-
-				err := conn.WriteMessage(websocket.TextMessage, []byte(sm))
-				if err != nil {
-					log.Warn().
-						Err(err).
-						Str("user", user).
-						Msg("failed to send message")
-				}
-			}
-
-			sendMsg("notice login-success=" + user)
+			connections.Set(user, conn)
 			break
-		default:
-			go respond(pg, m, conn, user, sendMsg)
 		}
 
 	}
-}
-
-func respond(
-	pg *sqlx.DB,
-	m []string,
-	conn *websocket.Conn,
-	user string,
-	sendMsg func(string),
-) {
-	switch m[0] {
-	case "list-sites":
-		// fetch existing sites for this user
-		sites, err := listSites(pg, user)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Msg("couldn't fetch sites for user")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-		sitesstr := make([]string, len(sites))
-		for i, s := range sites {
-			sitesstr[i] = strconv.Itoa(s.Id) + "=" + s.Domain
-		}
-		sendMsg("sites " + strings.Join(sitesstr, ","))
-		break
-	case "create-site":
-		domain := m[1]
-		id, err := createSite(pg, user, domain)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Str("domain", domain).
-				Msg("couldn't create site")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-		sendMsg("notice create-site-success=" + strconv.Itoa(id))
-		break
-	case "update-site-data":
-		spl := strings.SplitN(m[1], " ", 2)
-		siteId, err := strconv.Atoi(spl[0])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
-			return
-		}
-
-		sitedata := []byte(spl[1])
-		site, err := updateSiteData(pg, user, siteId, sitedata)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", siteId).
-				Msg("couldn't update site data")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendSite(sendMsg, site)
-		break
-	case "delete-site":
-		id, err := strconv.Atoi(m[1])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-			return
-		}
-
-		site, err := fetchSite(pg, user, id)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", id).
-				Msg("couldn't fetch site")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		err = removeBucket(site.Domain)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("domain", site.Domain).
-				Msg("couldn't delete bucket on delete-site")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		if strings.HasSuffix(site.Domain, mainHostname) {
-			err = removeSubdomainDNS(site.Domain)
-			if err != nil {
-				log.Error().
-					Err(err).
-					Str("domain", site.Domain).
-					Msg("couldn't remove dns record")
-				sendMsg("notice error=" + err.Error())
-				return
-			}
-		}
-
-		err = deleteSite(pg, user, id)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", site.Id).
-				Msg("couldn't delete site from db")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendMsg("notice delete-success=" + site.Domain)
-		break
-	case "enter-site":
-		id, err := strconv.Atoi(m[1])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-			return
-		}
-		site, err := fetchSite(pg, user, id)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", id).
-				Msg("couldn't fetch site")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendSite(sendMsg, site)
-		break
-	case "add-source":
-		siteId, err := strconv.Atoi(m[1])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-			return
-		}
-
-		site, err := addSource(pg, user, siteId)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", siteId).
-				Msg("couldn't add source")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendSite(sendMsg, site)
-		break
-	case "update-source":
-		spl := strings.SplitN(m[1], " ", 2)
-		sourceId, err := strconv.Atoi(spl[0])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + spl[0] + "' into a numeric id.")
-			return
-		}
-		source := Source{
-			Id: sourceId,
-		}
-		err = json.Unmarshal([]byte(spl[1]), &source)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Int("source", source.Id).
-				Msg("couldn't parse source json")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		site, err := updateSource(pg, user, source)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("source", source.Id).
-				Msg("couldn't update source")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendSite(sendMsg, site)
-		break
-	case "remove-source":
-		sourceId, err := strconv.Atoi(m[1])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-			return
-		}
-
-		site, err := removeSource(pg, user, sourceId)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("source", sourceId).
-				Msg("couldn't remove source")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendSite(sendMsg, site)
-		break
-	case "publish":
-		id, err := strconv.Atoi(m[1])
-		if err != nil {
-			sendMsg("notice error=couldn't convert '" + m[1] + "' into a numeric id.")
-			return
-		}
-
-		site, err := fetchSite(pg, user, id)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Str("user", user).
-				Int("site", id).
-				Msg("couldn't fetch site")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		err = publish(site, conn)
-		if err != nil {
-			log.Error().
-				Err(err).
-				Int("site", site.Id).
-				Msg("error publishing")
-			sendMsg("notice error=" + err.Error())
-			return
-		}
-
-		sendMsg("notice publish-success=" + site.Domain)
-		break
-	default:
-		log.Warn().
-			Str("message", m[0]).
-			Msg("invalid message kind")
-	}
-}
-
-func sendSite(sendMsg func(string), site Site) {
-	jsite, err := json.Marshal(site)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Int("site", site.Id).
-			Msg("couldn't jsonify site")
-		sendMsg("notice error=" + err.Error())
-	}
-
-	sendMsg("site " + string(jsite))
 }
 
 func notLoggedNotify(conn *websocket.Conn, userch chan string) {

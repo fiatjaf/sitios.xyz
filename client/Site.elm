@@ -38,7 +38,13 @@ emptySiteData = SiteData "" "" "" "" Array.empty "" "" Array.empty False
 siteDecoder = D.map4 Site
   (D.field "id" D.int)
   (D.field "domain" D.string)
-  (D.field "sources" (D.list sourceDecoder))
+  (D.field "sources"
+    ( D.oneOf
+      [ D.list sourceDecoder
+      , D.succeed []
+      ]
+    )
+  )
   (D.field "data" siteDataDecoder)
 
 siteDataDecoder = P.decode SiteData
