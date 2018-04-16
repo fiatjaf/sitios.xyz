@@ -40,6 +40,13 @@ body > header {
   text-align: center;
 }
 
+#login,
+#main {
+  min-height: 400px;
+  width: 1200px;
+  margin: 30px auto;
+}
+
 body > article,
 body > footer {
   width: 700px;
@@ -47,12 +54,14 @@ body > footer {
   text-align: justify;
 }
 
-#login,
-#main {
-  min-height: 400px;
-  width: 1200px;
-  margin: 30px auto;
+#login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+  #login > * {
+    margin-left: 6px;
+  }
 
 article + main #login { min-height: 200px; }
 article + main #log { display: none; }

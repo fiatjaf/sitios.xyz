@@ -25,6 +25,7 @@ type alias Model =
   , token : Maybe String
   , ws : String
   , main_hostname : String
+  , login_with : String
   }
 
 type Msg
@@ -33,6 +34,7 @@ type Msg
   | Response ResponseMsg
   | LoginUsing String
   | LoginWith String
+  | SetLoginWith String
   | Logout
   | EnterSite Int
   | StartCreatingSite
@@ -148,7 +150,13 @@ update msg model =
         Nothing -> Cmd.none
       )
     LoginWith account ->
-      ( model, Cmd.none )
+      ( model
+      , external <| "https://accountd.xyz/login/with/" ++ account
+      )
+    SetLoginWith account ->
+      ( { model | login_with = account }
+      , Cmd.none
+      )
     LoginUsing provider -> 
       ( model
       , external <| "https://accountd.xyz/login/using/" ++ provider
@@ -378,8 +386,13 @@ view model =
           , button [ onClick (LoginUsing "twitter") ] [ text "twitter" ]
           , text ", "
           , button [ onClick (LoginUsing "github") ] [ text "github" ]
-          , text " or "
+          , text ", "
           , button [ onClick (LoginUsing "trello") ] [ text "trello" ]
+          , span [] [ text " or " ]
+          , Html.form [ onSubmit (LoginWith model.login_with) ]
+            [ input [ onInput SetLoginWith, placeholder "your@email.com" ] []
+            , button [] [ text "ok" ]
+            ]
           ]
       Just username ->
         div [ id "main" ]
@@ -462,6 +475,7 @@ init {token, ws, main_hostname} =
     , ws = ws
     , token = token
     , main_hostname = main_hostname
+    , login_with = ""
     }
   , Task.succeed Init |> Task.perform identity
   )
