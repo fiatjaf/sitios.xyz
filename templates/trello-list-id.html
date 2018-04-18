@@ -46,10 +46,10 @@ tr:hover td { background-color: #555; }
 </form>
 
 <script>
-if (location.hash.length) {
-  document.querySelector('table').style.display = 'table'
+let boardURL = localStorage.getItem('board_url')
 
-  let boardURL = sessionStorage.getItem('board_url')
+if (location.hash.length && boardURL) {
+  document.querySelector('table').style.display = 'table'
   let boardShortLink = boardURL.split('/')[4]
   let key = document.querySelector('[name="key"]').value
   let token = location.hash.split('=')[1]
@@ -81,10 +81,13 @@ if (location.hash.length) {
         })
     })
     .catch(console.log.bind(console))
-} else {
-  document.getElementById('board_url').addEventListener('input', e => {
-    e.preventDefault()
-    sessionStorage.setItem('board_url', e.target.value)
-  })
 }
+
+let board_url = document.getElementById('board_url')
+board_url.value = boardURL
+board_url.addEventListener('input', e => {
+  e.preventDefault()
+  localStorage.setItem('board_url', e.target.value)
+})
+
 </script>
