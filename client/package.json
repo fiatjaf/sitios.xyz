@@ -5,11 +5,5 @@
     "elm": "latest",
     "envify": "^4.1.0",
     "haikunator-porreta": "^1.0.0"
-  },
-  "scripts": {
-    "install": "npm run build-js && npm run build-elm && npm run install-skeleton",
-    "build-elm": "cd client && elm make --yes Main.elm --output ../elm.js && cd -",
-    "build-js": "browserifyinc -t envify -vd client/app.js -o bundle.js",
-    "install-skeleton": "cd skeleton && npm install"
   }
 }

@@ -13,4 +13,3 @@ CREATE TABLE sources (
   root text NOT NULL -- where in the site this will appear: '/', '/posts' etc.
   data jsonb NOT NULL DEFAULT '{}' -- anything the providers may need
 );
-

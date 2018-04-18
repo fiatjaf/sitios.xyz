@@ -1,15 +1,15 @@
-all: elm.js bundle.js sitios
-client: elm.js bundle.js
+all: static/elm.js static/bundle.js sitios
+client: static/elm.js static/bundle.js
 
-bundle.js: client/app.js
+static/bundle.js: client/app.js
 	cd client && \
-      godotenv -f ../.env ./node_modules/.bin/browserifyinc -t envify -vd app.js -o ../bundle.js
+      godotenv -f ../.env ./node_modules/.bin/browserifyinc -t envify -vd app.js -o ../static/bundle.js
 
-elm.js: client/*.elm
-	npm run build-elm
+static/elm.js: client/*.elm
+	cd client && elm make --yes Main.elm --output ../static/elm.js && cd -
 
 sitios: *.go
 	go build
 
 run:
-	ag --ignore bundle.js --ignore elm.js -l | entr -r fish -c 'make; and godotenv ./sitios'
+	ag --ignore-dir static -l | entr -r fish -c 'make; and godotenv ./sitios'
