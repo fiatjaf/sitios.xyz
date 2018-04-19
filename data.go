@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/fiatjaf/accountd"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/types"
 )
@@ -17,6 +18,26 @@ type Source struct {
 	Provider string         `json:"provider"`
 	Root     string         `json:"root"`
 	Data     types.JSONText `json:"data"`
+}
+
+func rewriteAccounts(pg *sqlx.DB, user string) (n int, err error) {
+	look, err := accountd.Lookup(user)
+	if err != nil {
+		return
+	}
+	if len(look.Accounts) == 0 {
+		return
+	}
+
+	for _, acc := range look.Accounts {
+		_, err = pg.Exec(`UPDATE sites SET owner = $1 WHERE owner = $2`, look.Id, acc.Account)
+		if err != nil {
+			return
+		}
+		n++
+	}
+
+	return
 }
 
 func listSites(pg *sqlx.DB, user string) (sites []Site, err error) {

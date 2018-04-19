@@ -7,3 +7,5 @@ elm.js
 node_modules
 bundle.js
 browserify-cache.json
+static/*.js
+static/*.css

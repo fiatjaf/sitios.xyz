@@ -29,6 +29,12 @@ func main() {
 			Msg("error connecting to postgres")
 	}
 
+	http.HandleFunc("/trello-list-id", trelloListIdHandle)
+	http.HandleFunc("/trello", onboardTrello)
+	http.HandleFunc("/trello/instant-site", func(w http.ResponseWriter, r *http.Request) {
+		trelloInstantSite(pg, w, r)
+	})
+
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		conn, err := websocket.Upgrade(w, r, w.Header(), 1024, 1024)
 		if err != nil {
@@ -38,8 +44,10 @@ func main() {
 
 		handle(pg, conn)
 	})
-	http.HandleFunc("/trello-list-id", trelloListIdHandle)
-	http.Handle("/", http.FileServer(http.Dir("./")))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
+	http.Handle("/static/", http.FileServer(http.Dir("./")))
 	http.HandleFunc("/whoami", func(w http.ResponseWriter, r *http.Request) {
 		user, ok := auth(r, w)
 		if !ok {

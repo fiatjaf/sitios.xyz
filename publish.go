@@ -97,10 +97,14 @@ func publish(site Site, conn *websocket.Conn) error {
 		return err
 	}
 	log.Debug().Msg("site generated successfully.")
-	conn.WriteMessage(websocket.TextMessage, []byte("Site generated successfully."))
+	if conn != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Site generated successfully."))
+	}
 
 	// send files to s3
-	conn.WriteMessage(websocket.TextMessage, []byte("Now publishing..."))
+	if conn != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Now publishing..."))
+	}
 	log.Debug().Msg("uploading to s3...")
 	err = ensureBucket(site.Domain)
 	if err != nil {
@@ -131,6 +135,8 @@ type logproxy struct {
 }
 
 func (l logproxy) Write(p []byte) (n int, err error) {
-	l.conn.WriteMessage(websocket.TextMessage, p)
+	if conn != nil {
+		l.conn.WriteMessage(websocket.TextMessage, p)
+	}
 	return len(p), nil
 }
