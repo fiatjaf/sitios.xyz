@@ -61,6 +61,14 @@ func main() {
 			return
 		}
 
+		n, err := rewriteAccounts(pg, user)
+		if err != nil {
+			log.Warn().Err(err).Str("user", user).Msg("failed to rewrite accounts")
+		}
+		if n > 0 {
+			log.Info().Int("n", n).Str("user", user).Msg("rewritten accounts")
+		}
+
 		// fetch existing sites for this user
 		sites, err := listSites(pg, user)
 		if err != nil {

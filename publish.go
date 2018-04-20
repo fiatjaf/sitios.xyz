@@ -135,7 +135,7 @@ type logproxy struct {
 }
 
 func (l logproxy) Write(p []byte) (n int, err error) {
-	if conn != nil {
+	if l.conn != nil {
 		l.conn.WriteMessage(websocket.TextMessage, p)
 	}
 	return len(p), nil
