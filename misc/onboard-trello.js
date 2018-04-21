@@ -45,7 +45,10 @@ class Main extends React.Component {
                     .sort((a, b) => [a.starred, a.name] < [b.starred, b.name] ? 1 : -1)
                 })
               })
-              .catch(e => console.log('error fetching trello boards', e))
+              .catch(e => {
+                this.setState({error: 'error fetching trello boards: ' + e.message})
+                console.log('error fetching trello boards', e)
+              })
           }
         }, [
           h('h1', "You're 3 steps away from generating a blog with content from a Trello list. If you want to proceed, press 'GO' to authorize with your Trello account."),
@@ -64,7 +67,10 @@ class Main extends React.Component {
                   step: this.state.step + 1
                 })
               })
-              .catch(e => console.log('failed to fetch lists', e))
+              .catch(e => {
+                this.setState({error: 'error fetching trello lists: ' + e.message})
+                console.log('failed to fetch lists', e)
+              })
           }
         }, [
           h('h1', 'In which of these boards is the list you want to use?'),
@@ -137,7 +143,10 @@ ${me.bio}`,
                     })
                   })
               })
-              .catch(e => console.log('failed to fetch data to build site', e))
+              .catch(e => {
+                this.setState({error: 'failed deploying your site: ' + e.message})
+                console.log('failed deploying your site', e)
+              })
           }
         }, [
           h('h1', 'Select the list you want to use'),
@@ -175,6 +184,18 @@ ${me.bio}`,
         ])
       )
     ]
+
+    this.error = () => (
+      h('form', [
+        h('h1', 'Sorry. An error has ocurred.'),
+        h('p', h('code', this.state.error)),
+        h('p', [
+          'Please try creating your site from scratch on ',
+          h('a', {href: 'https://sitios.xyz/'}, 'https://sitios.xyz/'),
+          '. '
+        ])
+      ])
+    )
   }
 
   render () {
