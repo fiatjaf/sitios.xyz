@@ -97,7 +97,7 @@ class Main extends React.Component {
                 return fetch(`/trello/instant-site`, {
                   method: 'POST',
                   body: JSON.stringify({
-                    domain: me.username + '-trello-list-' + list.id +
+                    domain: list.name + '-' + list.id.slice(0, 5) +
                             '.' + process.env.MAIN_HOSTNAME,
                     data: {
                       name: `${me.username}'s site`,
@@ -120,7 +120,7 @@ ${me.bio}`,
                     },
                     sources: [{
                       provider: 'trello:list',
-                      root: '/posts',
+                      root: '/',
                       data: {
                         id: list.id,
                         apiKey: trello.key,
@@ -161,12 +161,15 @@ ${me.bio}`,
         h('form', [
           h('h1', [
             'Your site was built and is waiting for you on ',
-            h('a', {href: 'https://' + this.state.site.domain}, this.state.site.domain),
+            h('a', {
+              target: '_blank',
+              href: 'http://' + this.state.site.domain
+            }, this.state.site.domain),
             '.'
           ]),
           h('h1', [
             'To claim control over it, login on ',
-            h('a', {href: '/'}, 'sitios.xyz'),
+            h('a', {target: '_blank', href: '/'}, 'sitios.xyz'),
             ' using your Trello account.'
           ])
         ])
