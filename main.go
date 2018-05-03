@@ -361,20 +361,10 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 	for {
 		typ, bm, err := conn.ReadMessage()
 		if err != nil || typ != websocket.TextMessage {
-			log.Error().
-				Err(err).
-				Int("type", typ).
-				Msg("error reading message")
 			break
 		}
 		sm := string(bm)
-
 		m := strings.SplitN(sm, " ", 2)
-
-		log.Debug().
-			Str("m", sm).
-			Str("user", user).
-			Msg("got message")
 
 		if user == "" && m[0] != "login" {
 			log.Warn().Msg("not logged. waiting for login message.")
@@ -393,7 +383,6 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 					Msg("failed to verify auth token")
 				return
 			}
-			log.Debug().Str("user", user).Msg("successful login")
 			connections.Set(user, conn)
 			break
 		}
