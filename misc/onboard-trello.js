@@ -103,8 +103,7 @@ class Main extends React.Component {
                 return fetch(`/trello/instant-site`, {
                   method: 'POST',
                   body: JSON.stringify({
-                    domain: list.name + '-' + list.id.slice(0, 5) +
-                            '.' + process.env.MAIN_HOSTNAME,
+                    domain: list.id.slice(0, 5) + '.' + process.env.MAIN_HOSTNAME,
                     data: {
                       name: `${me.username}'s site`,
                       description: '',
