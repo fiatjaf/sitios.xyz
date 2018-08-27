@@ -91,7 +91,7 @@ func publish(site Site, conn *websocket.Conn) error {
 	)
 	cmd.Dir = "skeleton"
 	cmd.Stdout = logproxy{conn}
-	cmd.Stderr = logproxy{conn}
+	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	if err != nil {
 		return err
@@ -108,11 +108,13 @@ func publish(site Site, conn *websocket.Conn) error {
 	log.Debug().Msg("uploading to s3...")
 	err = ensureBucket(site.Domain)
 	if err != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Error creating S3 bucket: "+err.Error()))
 		return err
 	}
 
 	err = uploadFilesToBucket(site.Domain, filepath.Join(dirname, "_site"))
 	if err != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Error publishing to S3: "+err.Error()))
 		return err
 	}
 
@@ -123,10 +125,12 @@ func publish(site Site, conn *websocket.Conn) error {
 			strings.TrimSuffix(site.Domain, "."+mainHostname),
 		)
 		if err != nil {
+			conn.WriteMessage(websocket.TextMessage, []byte("Error setting DNS records: "+err.Error()))
 			return err
 		}
 	}
 
+	conn.WriteMessage(websocket.TextMessage, []byte("Published successfully."))
 	return nil
 }
 

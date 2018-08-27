@@ -136,6 +136,71 @@ providers =
         ]
       ]
     )
+  , ( "medium:profile", \data -> div [ class "provider-data" ]
+      [ p [ class "explanation" ]
+        [ text "Given a Medium profile URL (like "
+        , em [] [ text "https://medium.com/@MyName" ]
+        , text "), this will render all articles on that profile as blog posts, "
+        , text "each in its own sub-URL, and an index page on the root URL."
+        ]
+      , label []
+        [ b [] [ text "profile URL: " ]
+        , input
+          [ onInput (E.string >> EditSourceDataValue "profileURL")
+          , value
+            ( get "profileURL" data
+              |> Maybe.map ( D.decodeValue D.string >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault ""
+            )
+          ] []
+        , p [] [ text "The profile URL. It must be a public profile." ]
+        ]
+      , label []
+        [ b [] [ text "posts per page: " ]
+        , input
+          [ onInput
+            ( toInt
+             >> Result.withDefault 7
+             >> E.int
+             >> EditSourceDataValue "postsPerPage"
+            )
+          , value
+            ( get "postsPerPage" data
+              |> Maybe.map ( D.decodeValue D.int >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault 7
+              |> toString
+            )
+          ] []
+        , p []
+          [ text "The number of entries which will appear in the index page and "
+          , text "in all subsequent "
+          , code [] [ text "/p/{n}" ]
+          , text " pagination pages. If you just want a single page with all "
+          , text "entries, set this to a very high number."
+          ]
+        ]
+      , label []
+        [ b [] [ text "excerpts: " ]
+        , input
+          [ type_ "checkbox"
+          , onCheck (E.bool >> EditSourceDataValue "excerpts")
+          , checked
+            ( get "excerpts" data
+              |> Maybe.map ( D.decodeValue D.bool >> Result.toMaybe )
+              |> maybeJoin
+              |> withDefault True
+            )
+          ] []
+        , p []
+          [ text "Check this if you want the index and pagination pages to "
+          , text "show an excerpt of each article. The excerpt used will be the same "
+          , text "that is used by Medium itself."
+          ]
+        ]
+      ]
+    )
   , ( "trello:list", \data ->
     let
       apiKey = 

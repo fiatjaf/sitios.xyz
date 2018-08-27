@@ -6,7 +6,7 @@ module.exports = props => {
     h(Helmet, {key: 'helmet'}, [
       h('meta', {charset: 'utf-8'}),
       h('meta', {httpEquiv: 'x-ua-compatible', content: 'ie: edge'}),
-      h('meta', {name: 'description', content: 'Pure-CSS themes for standard HTML formats.'}),
+      h('meta', {name: 'description', content: props.global.description || ''}),
       h('meta', {name: 'viewport', content: 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=yes'}),
       h('title', props.global.name),
       h('link', {href: props.global.favicon, rel: 'shortcut icon'})

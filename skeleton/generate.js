@@ -8,7 +8,8 @@ const plugins = {
   'trello:board': 'sitio-trello/board',
   'evernote:note': 'sitio-evernote/note',
   'dropbox:file': 'sitio-dropbox/file',
-  'dropbox:folder': 'sitio-dropbox/folder'
+  'dropbox:folder': 'sitio-dropbox/folder',
+  'medium:profile': 'sitio-medium/list'
 }
 
 async function main (globals, sources) {
@@ -47,4 +48,6 @@ try {
   )
 } catch (err) {
   console.log('error generating site', err)
+  process.exitCode = 1
+  process.exit()
 }

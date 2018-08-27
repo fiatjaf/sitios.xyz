@@ -179,6 +179,9 @@ ${me.bio}`,
             'To claim control over it, login on ',
             h('a', {target: '_blank', href: '/'}, 'sitios.xyz'),
             ' using your Trello account.'
+          ]),
+          h('h1', [
+            h('small', 'This site is temporary and may be deleted at any time. Use it as a model to create a site with a meaningful name.')
           ])
         ])
       )

@@ -306,7 +306,9 @@ update msg model =
               _ -> Cmd.none
             )
         Publish ->
-          ( { model | log = model.log |> (::) ("Publishing site " ++ toString site.id) }
+          ( { model
+              | log = [ "Publishing site " ++ toString site.id ] -- cleanup all log messages
+            }
           , publish site.id
           )
         Delete ->

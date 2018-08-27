@@ -10,7 +10,6 @@ import (
 
 	"github.com/kr/s3"
 	"github.com/minio/minio-go"
-	"github.com/minio/minio-go/pkg/policy"
 )
 
 var AWS_KEY_ID = os.Getenv("AWS_KEY_ID")
@@ -36,7 +35,18 @@ func ensureBucket(bucketName string) error {
 		}
 	}
 
-	err = ms3.SetBucketPolicy(bucketName, "", policy.BucketPolicyReadOnly)
+	err = ms3.SetBucketPolicy(bucketName, `{
+  "Version":"2012-10-17",
+  "Statement":[
+    {
+      "Sid":"AddPerm",
+      "Effect":"Allow",
+      "Principal": "*",
+      "Action":["s3:GetObject"],
+      "Resource":["arn:aws:s3:::`+bucketName+`/*"]
+    }
+  ]
+}`)
 	if err != nil {
 		return err
 	}
