@@ -20,17 +20,14 @@ type Source struct {
 	Data     types.JSONText `json:"data"`
 }
 
-func rewriteAccounts(pg *sqlx.DB, user string) (n int, err error) {
-	look, err := accountd.Lookup(user)
-	if err != nil {
-		return
-	}
-	if len(look.Accounts) == 0 {
+func rewriteAccounts(pg *sqlx.DB, tokendata accountd.TokenData) (n int, err error) {
+	if len(tokendata.Accounts) == 0 {
 		return
 	}
 
-	for _, acc := range look.Accounts {
-		_, err = pg.Exec(`UPDATE sites SET owner = $1 WHERE owner = $2`, look.Id, acc.Account)
+	for _, acc := range tokendata.Accounts {
+		_, err = pg.Exec(`UPDATE sites SET owner = $1 WHERE owner = $2`,
+			tokendata.User.Name, acc)
 		if err != nil {
 			return
 		}

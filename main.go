@@ -15,6 +15,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var err error
+var pg *sqlx.DB
 var log = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Logger()
 var acd = accountd.NewClient()
 var serviceURL = os.Getenv("SERVICE_URL")
@@ -22,7 +24,7 @@ var mainHostname = os.Getenv("MAIN_HOSTNAME")
 var connections = cmap.New()
 
 func main() {
-	pg, err := sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
+	pg, err = sqlx.Connect("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal().
 			Err(err).
@@ -49,24 +51,16 @@ func main() {
 	})
 	http.Handle("/static/", http.FileServer(http.Dir("./")))
 	http.HandleFunc("/whoami", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, true)
 		if !ok {
 			return
 		}
 		json.NewEncoder(w).Encode(user)
 	})
 	http.HandleFunc("/list-sites", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
-		}
-
-		n, err := rewriteAccounts(pg, user)
-		if err != nil {
-			log.Warn().Err(err).Str("user", user).Msg("failed to rewrite accounts")
-		}
-		if n > 0 {
-			log.Info().Int("n", n).Str("user", user).Msg("rewritten accounts")
 		}
 
 		// fetch existing sites for this user
@@ -82,7 +76,7 @@ func main() {
 		json.NewEncoder(w).Encode(sites)
 	})
 	http.HandleFunc("/create-site", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -108,7 +102,7 @@ func main() {
 		json.NewEncoder(w).Encode(id)
 	})
 	http.HandleFunc("/get-site", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -133,7 +127,7 @@ func main() {
 		json.NewEncoder(w).Encode(site)
 	})
 	http.HandleFunc("/update-site", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -158,7 +152,7 @@ func main() {
 		json.NewEncoder(w).Encode(site)
 	})
 	http.HandleFunc("/delete-site", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -215,7 +209,7 @@ func main() {
 		w.WriteHeader(200)
 	})
 	http.HandleFunc("/add-source", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -239,7 +233,7 @@ func main() {
 		json.NewEncoder(w).Encode(site)
 	})
 	http.HandleFunc("/update-source", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -263,7 +257,7 @@ func main() {
 		json.NewEncoder(w).Encode(site)
 	})
 	http.HandleFunc("/delete-source", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -287,7 +281,7 @@ func main() {
 		json.NewEncoder(w).Encode(site)
 	})
 	http.HandleFunc("/publish", func(w http.ResponseWriter, r *http.Request) {
-		user, ok := auth(r, w)
+		user, ok := auth(r, w, false)
 		if !ok {
 			return
 		}
@@ -342,14 +336,25 @@ func main() {
 	panic(http.ListenAndServe(":"+port, nil))
 }
 
-func auth(r *http.Request, w http.ResponseWriter) (user string, ok bool) {
+func auth(r *http.Request, w http.ResponseWriter, rewrite bool) (user string, ok bool) {
 	token := strings.Split(r.Header.Get("Authorization"), " ")[1]
-	user, err := acd.VerifyAuth(token)
+	tokendata, err := acd.VerifyAuth(token)
 	if err != nil {
 		http.Error(w, "wrong authorization token: "+token, 401)
 		return "", false
 	}
-	return user, true
+
+	if rewrite {
+		n, err := rewriteAccounts(pg, tokendata)
+		if err != nil {
+			log.Warn().Err(err).Str("user", user).Msg("failed to rewrite accounts")
+		}
+		if n > 0 {
+			log.Info().Int("n", n).Str("user", user).Msg("rewritten accounts")
+		}
+	}
+
+	return tokendata.User.Name, true
 }
 
 func handle(pg *sqlx.DB, conn *websocket.Conn) {
@@ -373,8 +378,8 @@ func handle(pg *sqlx.DB, conn *websocket.Conn) {
 
 		switch m[0] {
 		case "login":
-			user, err = acd.VerifyAuth(m[1])
-			userch <- user
+			tokendata, err := acd.VerifyAuth(m[1])
+			userch <- tokendata.User.Name
 
 			if err != nil {
 				log.Error().
