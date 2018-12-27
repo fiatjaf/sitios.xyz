@@ -130,7 +130,9 @@ func publish(site Site, conn *websocket.Conn) error {
 		}
 	}
 
-	conn.WriteMessage(websocket.TextMessage, []byte("Published successfully."))
+	if conn != nil {
+		conn.WriteMessage(websocket.TextMessage, []byte("Published successfully."))
+	}
 	return nil
 }
 
